@@ -1,0 +1,25 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "*"
+djangorestframework = "*"
+django-cors-headers = "*"
+psycopg2-binary = "*"
+django-debug-toolbar = "*"
+django-filter = "*"
+djoser = "*"
+djangorestframework-simplejwt = "*"
+drf-yasg = "*"
+redis = "*"
+celery = "*"
+
+[dev-packages]
+pytest = "*"
+autopep8 = "*"
+pytest-django = "*"
+
+[requires]
+python_version = "3.10"
