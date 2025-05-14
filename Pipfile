@@ -15,6 +15,7 @@ djangorestframework-simplejwt = "*"
 drf-yasg = "*"
 redis = "*"
 celery = "*"
+python-dotenv = "*"
 
 [dev-packages]
 pytest = "*"
