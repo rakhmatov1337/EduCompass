@@ -79,9 +79,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",
     "http://127.0.0.1:4200",
     "https://educompas.uz",
+    "https://api.educompas.uz",
 ]
-
-CORS_ALLOW_ALL_ORIGINS = True
 
 if DEBUG:
     import socket
@@ -175,7 +174,11 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
+    'DEFAULT_ROUTER': 'rest_framework.routers.SimpleRouter',
+    'URL_FORMAT_OVERRIDE': None,
 }
+
+APPEND_SLASH = False
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),

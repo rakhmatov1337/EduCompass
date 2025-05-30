@@ -3,7 +3,7 @@ from rest_framework_nested import routers
 
 from main.views import (
     EduTypeViewSet, CategoryViewSet,
-    LevelViewSet, DayViewSet, TeacherViewSet, CourseViewSet)
+    LevelViewSet, DayViewSet, TeacherViewSet, CourseViewSet, CourseFilterSchemaView)
 from accounts.views import EduCenterViewSet, BranchViewSet, LikeViewSet, ViewViewSet, EduCenterCreateView
 
 
@@ -26,5 +26,7 @@ edu_center_router.register('views', ViewViewSet, basename='edu-center-views')
 
 urlpatterns = [
     path('edu-centers/create/', EduCenterCreateView.as_view(),
-         name='edu-center-create')
+         name='edu-center-create'),
+    path('courses/filters/', CourseFilterSchemaView.as_view(),
+         name='course-filter-schema'),
 ] + router.urls + edu_center_router.urls

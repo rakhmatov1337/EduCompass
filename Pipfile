@@ -16,6 +16,8 @@ drf-yasg = "*"
 redis = "*"
 celery = "*"
 python-dotenv = "*"
+dj-rest-auth = {extras = ["with_social"], version = "*"}
+django-allauth = "*"
 
 [dev-packages]
 pytest = "*"

@@ -1,7 +1,8 @@
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from drf_yasg.utils import swagger_auto_schema
 from django.utils.decorators import method_decorator
@@ -130,9 +131,9 @@ class CourseViewSet(ModelViewSet):
     filterset_class = CourseFilter
     search_fields = ['name', 'category__name', 'branch__edu_center__name']
     ordering_fields = ['price', 'total_places', 'start_date']
-    pagination_class = DefaultPagination
     permission_classes = [IsEduCenterOrBranch]
     ordering = ['start_date']
+    pagination_class = DefaultPagination
 
     queryset = Course.objects.filter(is_archived=False) \
         .select_related('branch', 'branch__edu_center', 'teacher', 'category', 'level') \
@@ -140,3 +141,36 @@ class CourseViewSet(ModelViewSet):
 
     def get_serializer_context(self):
         return {'request': self.request}
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 10))
+        total = queryset.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+        items = queryset[start:end]
+
+        serializer = self.get_serializer(items, many=True)
+        return Response({
+            'items': serializer.data,
+            'page': page,
+            'count': len(serializer.data),
+            'total': total
+        })
+
+
+class CourseFilterSchemaView(APIView):
+    def get(self, request):
+        filters = {
+            'price_min': 'Narxdan katta yoki teng',
+            'price_max': 'Narxdan kichik yoki teng',
+            'total_places_min': 'Joylar soni kamida',
+            'total_places_max': 'Joylar soni eng ko‘pi',
+            'teacher_gender': 'O‘qituvchi jinsi (male/female)',
+            'edu_center': 'Ta’lim markazi ID',
+            'edu_center_name': 'Ta’lim markazi nomi',
+            'category': 'Kurs kategoriyasi ID',
+        }
+        return Response(filters)
