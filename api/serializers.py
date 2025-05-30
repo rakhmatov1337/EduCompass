@@ -27,8 +27,6 @@ class EducationCenterSerializer(serializers.ModelSerializer):
         return list(categories)
 
 
-
-
 class LikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Like
@@ -44,6 +42,7 @@ class ViewSerializer(serializers.ModelSerializer):
 
 class EduTypeSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = EduType
         fields = [
@@ -51,25 +50,29 @@ class EduTypeSerializer(serializers.ModelSerializer):
         ]
 
 
-
 class CategorySerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = Category
         fields = [
             'id', 'name'
         ]
 
+
 class LevelSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = Level
         fields = [
             'id', 'name'
         ]
 
+
 class DaySerializer(serializers.ModelSerializer):
-    display_name = serializers.CharField(source='get_name_display', read_only=True)
+    display_name = serializers.CharField(
+        source='get_name_display', read_only=True)
 
     class Meta:
         model = Day
@@ -83,27 +86,46 @@ class TeacherSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'gender', 'branch']
 
 
-class BranchMiniSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Branch
-        fields = ['id', 'name', 'city']
-
-class TeacherMiniSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Teacher
-        fields = ['id', 'name', 'gender']
-
-
 class CourseSerializer(serializers.ModelSerializer):
-    final_price = serializers.DecimalField(read_only=True, max_digits=10, decimal_places=2)
+    final_price = serializers.DecimalField(
+        read_only=True, max_digits=10, decimal_places=2)
     available_places = serializers.IntegerField(read_only=True)
 
-    branch = BranchMiniSerializer(read_only=True)
-    category = CategorySerializer(read_only=True)
-    level = LevelSerializer(read_only=True)
-    teacher = TeacherMiniSerializer(read_only=True)
-    days = DaySerializer(read_only=True, many=True)
+    branch_name = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
+    level_name = serializers.SerializerMethodField()
+    teacher_name = serializers.SerializerMethodField()
+    teacher_gender = serializers.SerializerMethodField()
+    days = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
         exclude = ['is_archived']
+
+    def get_branch_name(self, obj):
+        if obj.branch and obj.branch.edu_center:
+            return f"{obj.branch.name} - {obj.branch.edu_center.name}"
+        return None
+
+    def get_category_name(self, obj):
+        return obj.category.name if obj.category else None
+
+    def get_level_name(self, obj):
+        return obj.level.name if obj.level else None
+
+    def get_teacher_name(self, obj):
+        return obj.teacher.name if obj.teacher else None
+
+    def get_teacher_gender(self, obj):
+        return obj.teacher.gender if obj.teacher else None
+
+    def get_days(self, obj):
+        return [day.name for day in obj.days.all()]
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        logo_url = obj.branch.edu_center.logo.url if obj.branch.edu_center.logo else None
+        if request and logo_url:
+            return request.build_absolute_uri(logo_url)
+        return logo_url
