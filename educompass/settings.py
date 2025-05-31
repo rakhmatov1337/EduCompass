@@ -178,7 +178,7 @@ REST_FRAMEWORK = {
     'URL_FORMAT_OVERRIDE': None,
 }
 
-APPEND_SLASH = False
+APPEND_SLASH = True
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
