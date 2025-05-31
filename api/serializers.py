@@ -121,7 +121,7 @@ class CourseSerializer(serializers.ModelSerializer):
         return obj.teacher.gender if obj.teacher else None
 
     def get_days(self, obj):
-        return [day.name for day in obj.days.all()]
+        return [day.name[:3].capitalize() for day in obj.days.all()]
 
     def get_image(self, obj):
         request = self.context.get('request')
