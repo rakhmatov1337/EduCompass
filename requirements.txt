@@ -50,3 +50,6 @@ uritemplate==4.1.1; python_version >= '3.6'
 urllib3==2.4.0; python_version >= '3.9'
 vine==5.1.0; python_version >= '3.6'
 wcwidth==0.2.13
+django-rest-framework-nested
+drf-nested-routers
+Pillow
