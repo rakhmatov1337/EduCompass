@@ -197,13 +197,15 @@ class EventSerializer(serializers.ModelSerializer):
     phone_number = serializers.SerializerMethodField()
     google_map = serializers.SerializerMethodField()
     yandex_map = serializers.SerializerMethodField()
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
         fields = [
             'id', 'name', 'picture', 'start_time', 'date',
             'requirements', 'price', 'description', 'link',
-            'is_archived', 'edu_center_name', 'edu_center_logo',
+            'is_archived', 'latitude', 'longitude',  'edu_center_name', 'edu_center_logo',
             'telegram_link', 'phone_number', 'google_map', 'yandex_map'
         ]
 
@@ -232,3 +234,9 @@ class EventSerializer(serializers.ModelSerializer):
         if obj.branch and obj.branch.latitude and obj.branch.longitude:
             return f"https://yandex.com/maps/?rtext=~{obj.branch.latitude},{obj.branch.longitude}"
         return None
+
+    def get_latitude(self, obj):
+        return float(obj.branch.latitude) if obj.branch and obj.branch.latitude else None
+
+    def get_longitude(self, obj):
+        return float(obj.branch.longitude) if obj.branch and obj.branch.longitude else None
