@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from dateutil.relativedelta import relativedelta
 
 
 from main.models import *
@@ -97,6 +98,7 @@ class CourseSerializer(serializers.ModelSerializer):
     teacher_name = serializers.SerializerMethodField()
     teacher_gender = serializers.SerializerMethodField()
     days = serializers.SerializerMethodField()
+    duration_months = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
 
     class Meta:
@@ -129,3 +131,12 @@ class CourseSerializer(serializers.ModelSerializer):
         if request and logo_url:
             return request.build_absolute_uri(logo_url)
         return logo_url
+
+    def get_duration_months(self, obj):
+        if obj.start_date and obj.end_date:
+            delta = relativedelta(obj.end_date, obj.start_date)
+            months = delta.years * 12 + delta.months
+            if delta.days > 0:
+                months += 1
+            return months
+        return None
