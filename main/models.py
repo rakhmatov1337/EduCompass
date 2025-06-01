@@ -118,9 +118,27 @@ class Branch(models.Model):
     name = models.CharField(max_length=255)
     edu_center = models.ForeignKey(
         EducationCenter, on_delete=models.CASCADE, related_name='branches')
-    country = models.CharField(max_length=255)
-    region = models.CharField(max_length=255)
-    city = models.CharField(max_length=255)
+
+    latitude = models.DecimalField(
+        max_digits=10, decimal_places=7, blank=True, null=True)
+    longitude = models.DecimalField(
+        max_digits=11, decimal_places=7, blank=True, null=True)
+
+    phone_regex = RegexValidator(
+        regex=r'^\+?998\d{9}$',
+        message="Telefon raqam quyidagi formatda bo‘lishi kerak: +998901234567"
+    )
+    phone_number = models.CharField(
+        validators=[phone_regex], max_length=15, blank=True, null=True)
+
+    work_time = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Ish vaqti, masalan: 09:00-18:00"
+    )
+    telegram_link = models.URLField(max_length=255, blank=True, null=True)
+
     admins = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         limit_choices_to={'role': 'BRANCH'},

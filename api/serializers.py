@@ -99,11 +99,26 @@ class CourseSerializer(serializers.ModelSerializer):
     teacher_gender = serializers.SerializerMethodField()
     days = serializers.SerializerMethodField()
     duration_months = serializers.SerializerMethodField()
-    image = serializers.SerializerMethodField()
+
+    edu_center_logo = serializers.SerializerMethodField()
+    cover = serializers.SerializerMethodField()
+
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+    phone_number = serializers.SerializerMethodField()
+    telegram_link = serializers.SerializerMethodField()
+    branch_id = serializers.IntegerField(source='branch.id', read_only=True)
+    category_id = serializers.IntegerField(
+        source='category.id', read_only=True)
+    level_id = serializers.IntegerField(source='level.id', read_only=True)
+    teacher_id = serializers.IntegerField(source='teacher.id', read_only=True)
+
+    google_map = serializers.SerializerMethodField()
+    yandex_map = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
-        exclude = ['is_archived']
+        exclude = ['is_archived', 'branch', 'category', 'level', 'teacher']
 
     def get_branch_name(self, obj):
         if obj.branch and obj.branch.edu_center:
@@ -125,13 +140,6 @@ class CourseSerializer(serializers.ModelSerializer):
     def get_days(self, obj):
         return [day.name[:3].capitalize() for day in obj.days.all()]
 
-    def get_image(self, obj):
-        request = self.context.get('request')
-        logo_url = obj.branch.edu_center.logo.url if obj.branch.edu_center.logo else None
-        if request and logo_url:
-            return request.build_absolute_uri(logo_url)
-        return logo_url
-
     def get_duration_months(self, obj):
         if obj.start_date and obj.end_date:
             delta = relativedelta(obj.end_date, obj.start_date)
@@ -139,4 +147,40 @@ class CourseSerializer(serializers.ModelSerializer):
             if delta.days > 0:
                 months += 1
             return months
+        return None
+
+    def get_edu_center_logo(self, obj):
+        request = self.context.get('request')
+        logo_url = obj.branch.edu_center.logo.url if obj.branch.edu_center.logo else None
+        if request and logo_url:
+            return request.build_absolute_uri(logo_url)
+        return logo_url
+
+    def get_cover(self, obj):
+        request = self.context.get('request')
+        cover_url = obj.branch.edu_center.cover.url if obj.branch.edu_center.cover else None
+        if request and cover_url:
+            return request.build_absolute_uri(cover_url)
+        return cover_url
+
+    def get_latitude(self, obj):
+        return float(obj.branch.latitude) if obj.branch and obj.branch.latitude else None
+
+    def get_longitude(self, obj):
+        return float(obj.branch.longitude) if obj.branch and obj.branch.longitude else None
+
+    def get_phone_number(self, obj):
+        return obj.branch.phone_number if obj.branch and obj.branch.phone_number else None
+
+    def get_telegram_link(self, obj):
+        return obj.branch.edu_center.telegram_link if obj.branch and obj.branch.edu_center and obj.branch.edu_center.telegram_link else None
+
+    def get_google_map(self, obj):
+        if obj.branch and obj.branch.latitude and obj.branch.longitude:
+            return f"https://www.google.com/maps/dir/?api=1&destination={obj.branch.latitude},{obj.branch.longitude}"
+        return None
+
+    def get_yandex_map(self, obj):
+        if obj.branch and obj.branch.latitude and obj.branch.longitude:
+            return f"https://yandex.com/maps/?rtext=~{obj.branch.latitude},{obj.branch.longitude}"
         return None
