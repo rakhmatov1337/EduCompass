@@ -134,7 +134,7 @@ class CourseViewSet(ModelViewSet):
     ordering_fields = ['price', 'total_places', 'start_date']
     permission_classes = [IsEduCenterOrBranch]
     ordering = ['start_date']
-    pagination_class = DefaultPagination
+    pagination_class = DefaultPagination  # aynan shu ishlaydi ✅
 
     queryset = Course.objects.filter(is_archived=False) \
         .select_related('branch', 'branch__edu_center', 'teacher', 'category', 'level') \
@@ -142,24 +142,6 @@ class CourseViewSet(ModelViewSet):
 
     def get_serializer_context(self):
         return {'request': self.request}
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-
-        page = int(request.query_params.get('page', 1))
-        page_size = int(request.query_params.get('page_size', 10))
-        total = queryset.count()
-        start = (page - 1) * page_size
-        end = start + page_size
-        items = queryset[start:end]
-
-        serializer = self.get_serializer(items, many=True)
-        return Response({
-            'items': serializer.data,
-            'page': page,
-            'count': len(serializer.data),
-            'total': total
-        })
 
 
 class CourseFilterSchemaView(APIView):
