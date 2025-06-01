@@ -9,7 +9,7 @@ from django.utils.decorators import method_decorator
 
 from api.serializers import *
 from api.permissions import IsSuperUserOrReadOnly, IsEduCenterOrBranch
-from api.filters import CourseFilter
+from api.filters import CourseFilter, EventFilter
 from api.paginations import DefaultPagination
 from .models import EduType, Category, Level
 
@@ -173,5 +173,24 @@ class CourseFilterSchemaView(APIView):
             'edu_center': 'Ta’lim markazi ID',
             'edu_center_name': 'Ta’lim markazi nomi',
             'category': 'Kurs kategoriyasi ID',
+        }
+        return Response(filters)
+
+
+class EventViewSet(ReadOnlyModelViewSet):
+    queryset = Event.objects.filter(
+        is_archived=False).select_related('edu_center', 'branch')
+    serializer_class = EventSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_class = EventFilter
+    search_fields = ['name', 'description']
+
+
+class EventFilterSchemaView(APIView):
+    def get(self, request):
+        filters = {
+            'start_date': 'Boshlanish sanasi (dan) – YYYY-MM-DD',
+            'end_date': 'Tugash sanasi (gacha) – YYYY-MM-DD',
+            'edu_center_id': 'Taʼlim markazlari IDlari (vergul bilan ajratilgan: 1,3,7)',
         }
         return Response(filters)

@@ -115,6 +115,7 @@ class CourseSerializer(serializers.ModelSerializer):
 
     google_map = serializers.SerializerMethodField()
     yandex_map = serializers.SerializerMethodField()
+    work_time = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -124,6 +125,9 @@ class CourseSerializer(serializers.ModelSerializer):
         if obj.branch and obj.branch.edu_center:
             return f"{obj.branch.name} - {obj.branch.edu_center.name}"
         return None
+
+    def get_work_time(self, obj):
+        return obj.branch.work_time if obj.branch else None
 
     def get_category_name(self, obj):
         return obj.category.name if obj.category else None
@@ -174,6 +178,50 @@ class CourseSerializer(serializers.ModelSerializer):
 
     def get_telegram_link(self, obj):
         return obj.branch.edu_center.telegram_link if obj.branch and obj.branch.edu_center and obj.branch.edu_center.telegram_link else None
+
+    def get_google_map(self, obj):
+        if obj.branch and obj.branch.latitude and obj.branch.longitude:
+            return f"https://www.google.com/maps/dir/?api=1&destination={obj.branch.latitude},{obj.branch.longitude}"
+        return None
+
+    def get_yandex_map(self, obj):
+        if obj.branch and obj.branch.latitude and obj.branch.longitude:
+            return f"https://yandex.com/maps/?rtext=~{obj.branch.latitude},{obj.branch.longitude}"
+        return None
+
+
+class EventSerializer(serializers.ModelSerializer):
+    edu_center_logo = serializers.SerializerMethodField()
+    edu_center_name = serializers.SerializerMethodField()
+    telegram_link = serializers.SerializerMethodField()
+    phone_number = serializers.SerializerMethodField()
+    google_map = serializers.SerializerMethodField()
+    yandex_map = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Event
+        fields = [
+            'id', 'name', 'picture', 'start_time', 'date',
+            'requirements', 'price', 'description', 'link',
+            'is_archived', 'edu_center_name', 'edu_center_logo',
+            'telegram_link', 'phone_number', 'google_map', 'yandex_map'
+        ]
+
+    def get_edu_center_name(self, obj):
+        return obj.edu_center.name if obj.edu_center else None
+
+    def get_edu_center_logo(self, obj):
+        request = self.context.get('request')
+        logo_url = obj.edu_center.logo.url if obj.edu_center and obj.edu_center.logo else None
+        if request and logo_url:
+            return request.build_absolute_uri(logo_url)
+        return logo_url
+
+    def get_telegram_link(self, obj):
+        return obj.edu_center.telegram_link if obj.edu_center and obj.edu_center.telegram_link else None
+
+    def get_phone_number(self, obj):
+        return obj.branch.phone_number if obj.branch and obj.branch.phone_number else None
 
     def get_google_map(self, obj):
         if obj.branch and obj.branch.latitude and obj.branch.longitude:

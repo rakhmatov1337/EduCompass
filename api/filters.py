@@ -1,6 +1,7 @@
 from django_filters.rest_framework import FilterSet, filters
-from main.models import Course, Day
+from main.models import Course, Day, Event
 from django.db.models import Q
+import django_filters
 
 
 class DayNameInFilter(filters.BaseInFilter, filters.CharFilter):
@@ -36,3 +37,19 @@ class CourseFilter(FilterSet):
             matched_days = Day.objects.filter(name__startswith=val.upper())
             q |= Q(days__in=matched_days)
         return queryset.filter(q).distinct()
+
+
+class NumberInFilter(django_filters.BaseInFilter, django_filters.NumberFilter):
+    pass
+
+
+class EventFilter(django_filters.FilterSet):
+    start_date = django_filters.DateFilter(
+        field_name='date', lookup_expr='gte')
+    end_date = django_filters.DateFilter(field_name='date', lookup_expr='lte')
+    edu_center_id = NumberInFilter(
+        field_name='edu_center__id', lookup_expr='in')
+
+    class Meta:
+        model = Event
+        fields = ['start_date', 'end_date', 'edu_center_id']

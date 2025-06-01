@@ -150,15 +150,26 @@ class Branch(models.Model):
 
 
 class Event(models.Model):
+    REQUIREMENT_CHOICES = [
+        ('FREE', 'Bepul'),
+        ('PAYED', 'Pullik'),
+    ]
+
     name = models.CharField(max_length=255)
     picture = models.ImageField(upload_to='events/')
+    branch = models.ForeignKey(
+        Branch, on_delete=models.CASCADE, related_name='events'
+    )
     edu_center = models.ForeignKey(
-        EducationCenter, on_delete=models.CASCADE, related_name='events')
+        EducationCenter, on_delete=models.CASCADE, related_name='events'
+    )
     date = models.DateField()
-    time = models.TimeField()
+    start_time = models.TimeField()
+    requirements = models.CharField(max_length=10, choices=REQUIREMENT_CHOICES)
+    price = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True)
     description = models.TextField()
     link = models.URLField(max_length=255, blank=True, null=True)
-    location = models.CharField(max_length=255, blank=True, null=True)
     is_archived = models.BooleanField(default=False)
 
     def __str__(self):
