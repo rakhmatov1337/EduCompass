@@ -1,42 +1,38 @@
-from django_filters.rest_framework import FilterSet
+from django_filters.rest_framework import FilterSet, filters
+from main.models import Course, Day
 from django.db.models import Q
-from main.models import Course
+
+
+class DayNameInFilter(filters.BaseInFilter, filters.CharFilter):
+    pass
+
 
 class CourseFilter(FilterSet):
+    price_min = filters.NumberFilter(field_name="price", lookup_expr="gte")
+    price_max = filters.NumberFilter(field_name="price", lookup_expr="lte")
+    total_places_min = filters.NumberFilter(
+        field_name="total_places", lookup_expr="gte")
+    total_places_max = filters.NumberFilter(
+        field_name="total_places", lookup_expr="lte")
+    teacher_gender = filters.CharFilter(
+        field_name="teacher__gender", lookup_expr="iexact")
+    edu_center = filters.CharFilter(method='filter_by_edu_center')
+    category = filters.BaseInFilter(
+        field_name="category__id", lookup_expr="in")
+    day = DayNameInFilter(method='filter_by_days')
+
     class Meta:
         model = Course
-        fields = {
-            'price': ['gte', 'lte'],
-            'total_places': ['gte', 'lte'],
-            'teacher__gender': ['exact'],
-            'branch__edu_center__id': ['exact'],
-            'branch__edu_center__name': ['icontains'],
-            'category': ['exact'],
-        }
+        fields = ['price', 'total_places', 'teacher__gender',
+                  'branch__edu_center__id', 'category']
 
-    def __init__(self, data=None, queryset=None, *, request=None, prefix=None):
-        super().__init__(data, queryset, request=request, prefix=prefix)
-        self.q = Q()
+    def filter_by_edu_center(self, queryset, name, value):
+        return queryset.filter(branch__edu_center__id=value)
 
-        if data:
-            if data.get('teacher_gender'):
-                self.q |= Q(teacher__gender__iexact=data['teacher_gender'])
-            if data.get('edu_center'):
-                self.q |= Q(branch__edu_center__id=data['edu_center'])
-            if data.get('edu_center_name'):
-                self.q |= Q(branch__edu_center__name__icontains=data['edu_center_name'])
-            if data.get('price_min'):
-                self.q |= Q(price__gte=data['price_min'])
-            if data.get('price_max'):
-                self.q |= Q(price__lte=data['price_max'])
-            if data.get('total_places_min'):
-                self.q |= Q(total_places__gte=data['total_places_min'])
-            if data.get('total_places_max'):
-                self.q |= Q(total_places__lte=data['total_places_max'])
-            if data.get('category'):
-                self.q |= Q(category__id=data['category'])
-
-    def filter_queryset(self, queryset):
-        if self.q:
-            return queryset.filter(self.q)
-        return queryset
+    def filter_by_days(self, queryset, name, value_list):
+        q = Q()
+        for val in value_list:
+            val = val.strip().capitalize()[:3]
+            matched_days = Day.objects.filter(name__startswith=val.upper())
+            q |= Q(days__in=matched_days)
+        return queryset.filter(q).distinct()

@@ -129,7 +129,8 @@ class CourseViewSet(ModelViewSet):
     serializer_class = CourseSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     filterset_class = CourseFilter
-    search_fields = ['name', 'category__name', 'branch__edu_center__name']
+    search_fields = ['name', 'branch__edu_center__name',
+                     'teacher__name', 'category__name']
     ordering_fields = ['price', 'total_places', 'start_date']
     permission_classes = [IsEduCenterOrBranch]
     ordering = ['start_date']
