@@ -160,8 +160,10 @@ class CourseFilterSchemaView(APIView):
 
 
 class EventViewSet(ReadOnlyModelViewSet):
-    queryset = Event.objects.filter(
-        is_archived=False).select_related('edu_center', 'branch')
+    queryset = Event.objects.filter(is_archived=False) \
+        .select_related('edu_center', 'branch') \
+        .prefetch_related('categories')
+
     serializer_class = EventSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = EventFilter

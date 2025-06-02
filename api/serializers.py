@@ -199,7 +199,7 @@ class EventSerializer(serializers.ModelSerializer):
     yandex_map = serializers.SerializerMethodField()
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
-    categories = serializers.StringRelatedField(many=True)  # 👈 qo‘shildi
+    categories = serializers.StringRelatedField(many=True)
 
     class Meta:
         model = Event
