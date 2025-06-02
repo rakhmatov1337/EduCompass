@@ -199,14 +199,18 @@ class EventSerializer(serializers.ModelSerializer):
     yandex_map = serializers.SerializerMethodField()
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
+    categories = serializers.StringRelatedField(many=True)  # 👈 qo‘shildi
 
     class Meta:
         model = Event
         fields = [
             'id', 'name', 'picture', 'start_time', 'date',
             'requirements', 'price', 'description', 'link',
-            'is_archived', 'latitude', 'longitude',  'edu_center_name', 'edu_center_logo',
-            'telegram_link', 'phone_number', 'google_map', 'yandex_map'
+            'is_archived', 'latitude', 'longitude',
+            'edu_center_name', 'edu_center_logo',
+            'telegram_link', 'phone_number',
+            'google_map', 'yandex_map',
+            'categories'  # 👈 bu yerga ham qo‘shildi
         ]
 
     def get_edu_center_name(self, obj):
