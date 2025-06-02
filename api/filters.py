@@ -43,13 +43,19 @@ class NumberInFilter(django_filters.BaseInFilter, django_filters.NumberFilter):
     pass
 
 
+class NumberInFilter(django_filters.BaseInFilter, django_filters.NumberFilter):
+    pass
+
+
 class EventFilter(django_filters.FilterSet):
     start_date = django_filters.DateFilter(
         field_name='date', lookup_expr='gte')
     end_date = django_filters.DateFilter(field_name='date', lookup_expr='lte')
     edu_center_id = NumberInFilter(
         field_name='edu_center__id', lookup_expr='in')
+    category = NumberInFilter(
+        field_name='categories__id', lookup_expr='in')
 
     class Meta:
         model = Event
-        fields = ['start_date', 'end_date', 'edu_center_id']
+        fields = ['start_date', 'end_date', 'edu_center_id', 'category']

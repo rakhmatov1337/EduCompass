@@ -174,5 +174,6 @@ class EventFilterSchemaView(APIView):
             'start_date': 'Boshlanish sanasi (dan) – YYYY-MM-DD',
             'end_date': 'Tugash sanasi (gacha) – YYYY-MM-DD',
             'edu_center_id': 'Taʼlim markazlari IDlari (vergul bilan ajratilgan: 1,3,7)',
+            'category': "Kategoriya bo'yicha saralash!"
         }
         return Response(filters)

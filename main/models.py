@@ -163,6 +163,8 @@ class Event(models.Model):
     edu_center = models.ForeignKey(
         EducationCenter, on_delete=models.CASCADE, related_name='events'
     )
+    categories = models.ManyToManyField(
+        Category, related_name='events', blank=True)
     date = models.DateField()
     start_time = models.TimeField()
     requirements = models.CharField(max_length=10, choices=REQUIREMENT_CHOICES)
