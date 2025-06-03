@@ -187,6 +187,19 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('JWT',),
 }
 
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'JWT Token': {
+            'type': 'apiKey',
+            'in': 'header',
+            'name': 'Authorization',
+            'description': 'JWT tokenini quyidagicha kiriting: **JWT <access_token>**',
+        }
+    },
+    'USE_SESSION_AUTH': False,
+}
+
 DJOSER = {
     'LOGIN_FIELD': 'phone_number',
     'USER_CREATE_PASSWORD_RETYPE': True,
