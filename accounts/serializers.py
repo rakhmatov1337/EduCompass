@@ -23,7 +23,7 @@ class UserCreateSerializer(BaseUserCreateSerializer):
 class UserSerializer(BaseUserSerializer):
     class Meta(BaseUserSerializer.Meta):
         fields = ['id', 'username', 'full_name', 'phone_number',
-                  'birth_date', 'gender', 'country', 'region', 'city', ]
+                  'birth_date', 'gender', 'country', 'region', 'city', 'role' ]
 
 
 class EduCenterCreateSerializer(serializers.ModelSerializer):
