@@ -134,7 +134,7 @@ class CourseViewSet(ModelViewSet):
     ordering_fields = ['price', 'total_places', 'start_date']
     permission_classes = [IsEduCenterOrBranch]
     ordering = ['start_date']
-    pagination_class = DefaultPagination  # aynan shu ishlaydi ✅
+    pagination_class = DefaultPagination
 
     queryset = Course.objects.filter(is_archived=False) \
         .select_related('branch', 'branch__edu_center', 'teacher', 'category', 'level') \
@@ -168,6 +168,7 @@ class EventViewSet(ReadOnlyModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = EventFilter
     search_fields = ['name', 'description']
+    pagination_class = DefaultPagination
 
 
 class EventFilterSchemaView(APIView):
