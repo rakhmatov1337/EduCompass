@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django_filters',
     'rest_framework',
     'djoser',
+    'rest_framework_simplejwt.token_blacklist',
     'debug_toolbar',
     'corsheaders',
     'drf_yasg',
@@ -73,14 +74,7 @@ INTERNAL_IPS = [
     "127.0.0.1",
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8001",
-    "http://127.0.0.1:8001",
-    "http://localhost:4200",
-    "http://127.0.0.1:4200",
-    "https://educompas.uz",
-    "https://api.educompas.uz",
-]
+CORS_ALLOW_ALL_ORIGINS = True
 
 if DEBUG:
     import socket
@@ -174,9 +168,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ],
-    'DEFAULT_ROUTER': 'rest_framework.routers.SimpleRouter',
-    'URL_FORMAT_OVERRIDE': None,
+    ]
 }
 
 APPEND_SLASH = True
@@ -185,6 +177,8 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'AUTH_HEADER_TYPES': ('JWT',),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 
