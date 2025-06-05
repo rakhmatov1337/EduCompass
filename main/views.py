@@ -141,8 +141,6 @@ class CourseViewSet(viewsets.ModelViewSet):
         .prefetch_related('days')
     )
     serializer_class = CourseSerializer
-
-    # CRUD uchun permission: markaz va filial adminlari
     permission_classes = [IsEduCenterOrBranch]
 
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]

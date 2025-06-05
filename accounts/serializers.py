@@ -129,57 +129,26 @@ class MyCourseSerializer(serializers.ModelSerializer):
         fields = ['course_name', 'level', 'days', 'start_time', 'logo_url']
 
     def get_days(self, obj):
-        labels = [day.name[:2].capitalize() for day in obj.course.days.all()]
-        return labels
+        return [day.name[:2].capitalize() for day in obj.course.days.all()]
 
     def get_start_time(self, obj):
         return obj.course.start_time.strftime("%H:%M") if obj.course.start_time else None
 
     def get_logo_url(self, obj):
-        if obj.course.logo:
-            request = self.context.get('request')
-            url = obj.course.logo.url
-            return request.build_absolute_uri(url) if request else url
-        return None
+        branch = getattr(obj.course, 'branch', None)
+        if not branch:
+            return None
+        edu_center = getattr(branch, 'edu_center', None)
+        if not edu_center:
+            return None
 
+        logo_field = getattr(edu_center, 'logo', None)
+        if not logo_field:
+            return None
 
-class ApplyCourseSerializer(serializers.Serializer):
-    full_name = serializers.CharField(
-        max_length=255,
-        help_text="To‘liq ism-familiyangiz"
-    )
-    phone_number = serializers.CharField(
-        max_length=20,
-        help_text="Telefon raqamingiz (unikal boʻlishi kerak)"
-    )
-
-    def validate_phone_number(self, value):
-        if not value:
-            raise serializers.ValidationError("Telefon raqam majburiy.")
-        return value
-
-    def create_or_update_user(self):
         request = self.context.get('request')
-        user = request.user if (
-            request and request.user and request.user.is_authenticated) else None
-
-        full_name = self.validated_data.get('full_name')
-        phone = self.validated_data.get('phone_number')
-
-        if user:
-            user.full_name = full_name
-            user.phone_number = phone
-            user.save(update_fields=['full_name', 'phone_number'])
-            return user
-        UserModel = get_user_model()
-        user_obj, created = UserModel.objects.get_or_create(
-            phone_number=phone,
-            defaults={'full_name': full_name}
-        )
-        if not created and user_obj.full_name != full_name:
-            user_obj.full_name = full_name
-            user_obj.save(update_fields=['full_name'])
-        return user_obj
+        logo_url = logo_field.url 
+        return request.build_absolute_uri(logo_url) if request else logo_url
 
 
 class EmptySerializer(serializers.Serializer):
