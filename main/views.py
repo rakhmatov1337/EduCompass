@@ -1,3 +1,10 @@
+from accounts.serializers import MyCourseSerializer
+from .models import Course
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import action
+from rest_framework import viewsets, status
+from django.db.models import F
+from django.shortcuts import get_object_or_404
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -7,6 +14,7 @@ from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
 from django.utils.decorators import method_decorator
 
+from accounts.serializers import EmptySerializer
 from api.serializers import *
 from api.permissions import IsSuperUserOrReadOnly, IsEduCenterOrBranch
 from api.filters import CourseFilter, EventFilter
@@ -125,23 +133,90 @@ class TeacherViewSet(ReadOnlyModelViewSet):
     operation_summary="Delete a course",
     tags=["Course"]
 ))
-class CourseViewSet(ModelViewSet):
+class CourseViewSet(viewsets.ModelViewSet):
+    queryset = (
+        Course.objects
+        .filter(is_archived=False)
+        .select_related('branch', 'branch__edu_center', 'teacher', 'category', 'level')
+        .prefetch_related('days')
+    )
     serializer_class = CourseSerializer
+
+    # CRUD uchun permission: markaz va filial adminlari
+    permission_classes = [IsEduCenterOrBranch]
+
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     filterset_class = CourseFilter
     search_fields = ['name', 'branch__edu_center__name',
                      'teacher__name', 'category__name']
     ordering_fields = ['price', 'total_places', 'start_date']
-    permission_classes = [IsEduCenterOrBranch]
     ordering = ['start_date']
     pagination_class = DefaultPagination
 
-    queryset = Course.objects.filter(is_archived=False) \
-        .select_related('branch', 'branch__edu_center', 'teacher', 'category', 'level') \
-        .prefetch_related('days')
-
     def get_serializer_context(self):
         return {'request': self.request}
+
+    def get_permissions(self):
+        """
+        Agar action 'apply' yoki 'my_courses' bo'lsa → IsAuthenticated,
+        aks holda → IsEduCenterOrBranch
+        """
+        if self.action in ['apply', 'my_courses']:
+            return [IsAuthenticated()]
+        return super().get_permissions()
+
+    @action(
+        detail=True,
+        methods=['post'],
+        permission_classes=[IsAuthenticated],
+        serializer_class=EmptySerializer,
+        url_path='apply',
+        url_name='apply'
+    )
+    def apply(self, request, pk=None):
+        course = get_object_or_404(Course, pk=pk, is_archived=False)
+        user = request.user
+
+        if Enrollment.objects.filter(user=user, course=course).exists():
+            return Response(
+                {"detail": "Siz allaqachon ushbu kursga yozilgansiz."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        Enrollment.objects.create(user=user, course=course)
+
+        course.booked_places = F('booked_places') + 1
+        course.save(update_fields=['booked_places'])
+
+        return Response(
+            {
+                "detail": "Kursga muvoffaqiyatli ro‘yxatdan oʻtildi.",
+                "course_id": course.id,
+                "user_id":   user.id
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+    @action(
+        detail=False,
+        methods=['get'],
+        permission_classes=[IsAuthenticated],
+        url_path='my-courses',
+        url_name='my_courses'
+    )
+    def my_courses(self, request):
+        enrollments = (
+            Enrollment.objects
+            .filter(user=request.user)
+            .select_related('course__level')
+            .prefetch_related('course__days')
+        )
+        serializer = MyCourseSerializer(
+            enrollments,
+            many=True,
+            context={'request': request}
+        )
+        return Response(serializer.data)
 
 
 class CourseFilterSchemaView(APIView):

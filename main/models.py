@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.conf import settings
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -229,3 +230,25 @@ class Banner(models.Model):
 
     def __str__(self):
         return f"Banner ({self.language_code})"
+
+
+
+class Enrollment(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='enrollments'
+    )
+    course = models.ForeignKey(
+        'main.Course',
+        on_delete=models.CASCADE,
+        related_name='enrollments'
+    )
+    applied_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        unique_together = ('user', 'course')
+        ordering = ['-applied_at']
+
+    def __str__(self):
+        return f"{self.user} → {self.course.name}"

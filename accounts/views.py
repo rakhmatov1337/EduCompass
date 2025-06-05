@@ -1,8 +1,11 @@
+from rest_framework import generics, permissions
+from .serializers import MyCourseSerializer
+from main.models import Enrollment
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response 
+from rest_framework.response import Response
 from rest_framework.generics import CreateAPIView
 from django.db.models import Count, Prefetch
 from django.contrib.contenttypes.models import ContentType
@@ -16,6 +19,7 @@ from api.serializers import LikeSerializer, ViewSerializer, EducationCenterSeria
 from api.paginations import DefaultPagination
 
 User = get_user_model()
+
 
 class EduCenterViewSet(ReadOnlyModelViewSet):
     serializer_class = EducationCenterSerializer
@@ -31,7 +35,8 @@ class EduCenterViewSet(ReadOnlyModelViewSet):
         .prefetch_related(
             'edu_type',
             Prefetch('branches', queryset=Branch.objects.prefetch_related(
-                Prefetch('courses', queryset=Course.objects.select_related('category'))
+                Prefetch(
+                    'courses', queryset=Course.objects.select_related('category'))
             ))
         )
     )
@@ -39,8 +44,7 @@ class EduCenterViewSet(ReadOnlyModelViewSet):
 
 class EduCenterCreateView(CreateAPIView):
     serializer_class = EduCenterCreateSerializer
-    permission_classes = [IsSuperUser] 
-
+    permission_classes = [IsSuperUser]
 
 
 class LikeViewSet(ModelViewSet):
@@ -60,7 +64,8 @@ class LikeViewSet(ModelViewSet):
         if getattr(self, 'swagger_fake_view', False):
             return Response({"detail": "Fake view for schema generation."})
 
-        edu_center = get_object_or_404(EducationCenter, pk=self.kwargs['edu_center_pk'])
+        edu_center = get_object_or_404(
+            EducationCenter, pk=self.kwargs['edu_center_pk'])
         content_type = ContentType.objects.get_for_model(EducationCenter)
 
         existing_like = Like.objects.filter(
@@ -98,7 +103,8 @@ class ViewViewSet(ModelViewSet):
         if getattr(self, 'swagger_fake_view', False):
             return
 
-        edu_center = get_object_or_404(EducationCenter, pk=self.kwargs['edu_center_pk'])
+        edu_center = get_object_or_404(
+            EducationCenter, pk=self.kwargs['edu_center_pk'])
         serializer.save(user=self.request.user, content_object=edu_center)
 
 
@@ -115,7 +121,19 @@ class BranchViewSet(ModelViewSet):
         return Branch.objects.none()
 
     def perform_create(self, serializer):
-        edu_center = EducationCenter.objects.filter(user=self.request.user).first()
+        edu_center = EducationCenter.objects.filter(
+            user=self.request.user).first()
         if not edu_center:
-            raise PermissionDenied("Sizga biriktirilgan Education Center mavjud emas.")
+            raise PermissionDenied(
+                "Sizga biriktirilgan Education Center mavjud emas.")
         serializer.save(edu_center=edu_center)
+
+
+class MyCoursesView(generics.ListAPIView):
+    serializer_class = MyCourseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Enrollment.objects.filter(user=self.request.user).select_related('course__level').prefetch_related('course__days')
+
+

@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.validators import RegexValidator
 from api.serializers import EducationCenterSerializer
 
-from main.models import Branch, EducationCenter
+from main.models import Branch, EducationCenter, Enrollment
 
 User = get_user_model()
 
@@ -23,7 +23,8 @@ class UserCreateSerializer(BaseUserCreateSerializer):
 class UserSerializer(BaseUserSerializer):
     class Meta(BaseUserSerializer.Meta):
         fields = ['id', 'username', 'full_name', 'phone_number',
-                  'birth_date', 'gender', 'country', 'region', 'city', 'role' ]
+                  'birth_date', 'gender', 'country', 'region', 'city', 'role']
+        read_only_fields = ['id', 'username', 'role']
 
 
 class EduCenterCreateSerializer(serializers.ModelSerializer):
@@ -114,3 +115,72 @@ class BranchCreateSerializer(serializers.ModelSerializer):
         if obj.latitude and obj.longitude:
             return f"https://yandex.com/maps/?rtext=~{obj.latitude},{obj.longitude}"
         return None
+
+
+class MyCourseSerializer(serializers.ModelSerializer):
+    course_name = serializers.CharField(source='course.name', read_only=True)
+    level = serializers.CharField(source='course.level.name', read_only=True)
+    days = serializers.SerializerMethodField()
+    start_time = serializers.SerializerMethodField()
+    logo_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Enrollment
+        fields = ['course_name', 'level', 'days', 'start_time', 'logo_url']
+
+    def get_days(self, obj):
+        labels = [day.name[:2].capitalize() for day in obj.course.days.all()]
+        return labels
+
+    def get_start_time(self, obj):
+        return obj.course.start_time.strftime("%H:%M") if obj.course.start_time else None
+
+    def get_logo_url(self, obj):
+        if obj.course.logo:
+            request = self.context.get('request')
+            url = obj.course.logo.url
+            return request.build_absolute_uri(url) if request else url
+        return None
+
+
+class ApplyCourseSerializer(serializers.Serializer):
+    full_name = serializers.CharField(
+        max_length=255,
+        help_text="To‘liq ism-familiyangiz"
+    )
+    phone_number = serializers.CharField(
+        max_length=20,
+        help_text="Telefon raqamingiz (unikal boʻlishi kerak)"
+    )
+
+    def validate_phone_number(self, value):
+        if not value:
+            raise serializers.ValidationError("Telefon raqam majburiy.")
+        return value
+
+    def create_or_update_user(self):
+        request = self.context.get('request')
+        user = request.user if (
+            request and request.user and request.user.is_authenticated) else None
+
+        full_name = self.validated_data.get('full_name')
+        phone = self.validated_data.get('phone_number')
+
+        if user:
+            user.full_name = full_name
+            user.phone_number = phone
+            user.save(update_fields=['full_name', 'phone_number'])
+            return user
+        UserModel = get_user_model()
+        user_obj, created = UserModel.objects.get_or_create(
+            phone_number=phone,
+            defaults={'full_name': full_name}
+        )
+        if not created and user_obj.full_name != full_name:
+            user_obj.full_name = full_name
+            user_obj.save(update_fields=['full_name'])
+        return user_obj
+
+
+class EmptySerializer(serializers.Serializer):
+    pass

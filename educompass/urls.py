@@ -5,23 +5,20 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
-# DRF va JWT-views importlari:
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,   # login uchun
-    TokenRefreshView,      # token yangilash uchun
-    TokenBlacklistView     # logout uchun (refresh-token blacklisting)
+    TokenObtainPairView, 
+    TokenRefreshView,      
+    TokenBlacklistView  
 )
-# Djoser-ning UserViewSet’ini import qilamiz:
 from djoser.views import UserViewSet
+from accounts.views import MyCoursesView
 
-# Siz oldin yozgan boshqa include’lar:
 from main import urls as main_urls
 from api import urls as api_urls
 from accounts import urls as accounts_urls
 from dashboard import urls as dashboard_urls
 import debug_toolbar
 
-# Swagger uchun (istenilsa):
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
@@ -51,13 +48,17 @@ urlpatterns = [
     path('auth/register/',
          UserViewSet.as_view({'post': 'create'}),       name='auth_register'),
     path('auth/me/',
-         UserViewSet.as_view({'get':  'current_user'}), name='auth_current_user'),
+         UserViewSet.as_view({'get':  'me',
+                              'put': 'update',
+                              'patch': 'partial_update'
+                              }), name='auth_current_user'),
     path('swagger.json', schema_view.without_ui(
         cache_timeout=0), name='schema-json'),
     path('swagger/',     schema_view.with_ui('swagger',
          cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/',       schema_view.with_ui('redoc',
          cache_timeout=0), name='schema-redoc'),
+    path('auth/me/my-courses/', MyCoursesView.as_view(), name='auth_my_courses'),
 ]
 if settings.DEBUG:
     urlpatterns += [path('__debug__/', include(debug_toolbar.urls))]
