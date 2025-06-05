@@ -1,3 +1,6 @@
+from rest_framework_simplejwt.tokens import RefreshToken
+from accounts.serializers import UserCreateSerializer
+from rest_framework import generics, status
 from rest_framework import generics, permissions
 from .serializers import MyCourseSerializer
 from main.models import Enrollment
@@ -137,3 +140,22 @@ class MyCoursesView(generics.ListAPIView):
         return Enrollment.objects.filter(user=self.request.user).select_related('course__level').prefetch_related('course__days')
 
 
+class RegisterView(generics.CreateAPIView):
+    serializer_class = UserCreateSerializer
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        user_data = response.data
+        user = User.objects.get(pk=user_data['id'])
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        return Response(
+            {
+                "user":    user_data,
+                "access":  access_token,
+                "refresh": refresh_token
+            },
+            status=status.HTTP_201_CREATED
+        )

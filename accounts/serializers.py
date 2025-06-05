@@ -10,14 +10,44 @@ User = get_user_model()
 
 
 class UserCreateSerializer(BaseUserCreateSerializer):
+    re_password = serializers.CharField(write_only=True)
+
     class Meta(BaseUserCreateSerializer.Meta):
-        fields = ['id', 'username', 'full_name', 'password', 'role']
+        model = User
+        fields = [
+            'id',
+            'full_name',
+            'phone_number',
+            'password',
+            're_password',
+            'role',
+        ]
         read_only_fields = ['role']
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
+
+    def validate_phone_number(self, value):
+        if User.objects.filter(phone_number=value).exists():
+            raise serializers.ValidationError(
+                "Bu telefon raqam bilan ro‘yxatdan oʻtilgan foydalanuvchi allaqachon mavjud.")
+        return value
 
     def validate(self, attrs):
+        password = attrs.get('password')
+        re_password = attrs.pop('re_password', None)
+
+        if password != re_password:
+            raise serializers.ValidationError(
+                {"password": "Parol va takroriy parol mos kelmadi."})
+
         if attrs.get("phone_number"):
             attrs["role"] = "STUDENT"
+
         return super().validate(attrs)
+
+    def create(self, validated_data):
+        return super().create(validated_data)
 
 
 class UserSerializer(BaseUserSerializer):
