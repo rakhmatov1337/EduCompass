@@ -31,3 +31,13 @@ class IsSuperUser(permissions.BasePermission):
             request.user.is_authenticated and
             getattr(request.user, 'role', None) == 'SUPERUSER'
         )
+
+
+class IsEduCenterOrReadOnly(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return (
+            request.user.is_authenticated and
+            getattr(request.user, 'role', None) == 'EDU_CENTER'
+        )

@@ -8,9 +8,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenBlacklistView
 )
-from accounts.views import RegisterView, MyCoursesView  # <-- RegisterView qo‘shildi
-# from djoser.views import UserViewSet  # <-- hozirda ishlamaydi
-# ↑ Djoser UserViewSet o‘rniga biz RegisterView’dan foydalanamiz
+from accounts.views import RegisterView, MyCoursesView  
 
 from main.views import (
     EduTypeViewSet, CategoryViewSet,

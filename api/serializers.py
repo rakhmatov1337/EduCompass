@@ -1,8 +1,44 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from dateutil.relativedelta import relativedelta
 
+from main.models import (
+    EducationCenter, Branch, Teacher, Course, Event,
+    Category, Day, Level, EduType, Like, View
+)
+from main.models import Enrollment
 
-from main.models import *
+
+class DynamicBranchSerializerMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request', None)
+        user = getattr(request, 'user', None)
+        if not user or not user.is_authenticated:
+            return
+        # Agar serializer’da branch maydoni bo‘lmasa, toshlamaydi
+        if 'branch' not in self.fields:
+            return
+
+        if user.role == 'EDU_CENTER':
+            # EDU_CENTER: faqat o‘z filiallari
+            self.fields['branch'] = serializers.PrimaryKeyRelatedField(
+                queryset=Branch.objects.filter(edu_center__user=user),
+                required=True
+            )
+        elif user.role == 'BRANCH':
+            # BRANCH: yashirin maydon, default = first branch
+            own_branch = user.branches.first()
+            if not own_branch:
+                raise serializers.ValidationError(
+                    "Sizga oid filial topilmadi.")
+            self.fields['branch'] = serializers.HiddenField(default=own_branch)
+        else:
+            # STUDENT/Anonim: global, lekin CRUD uchun kerak bo‘lmaydi
+            self.fields['branch'] = serializers.PrimaryKeyRelatedField(
+                queryset=Branch.objects.all(),
+                required=False
+            )
 
 
 class EducationCenterSerializer(serializers.ModelSerializer):
@@ -20,12 +56,12 @@ class EducationCenterSerializer(serializers.ModelSerializer):
         ]
 
     def get_categories(self, obj):
-        categories = set()
-        for branch in obj.branches.all():
-            for course in branch.courses.all():
-                if course.category:
-                    categories.add(course.category.name)
-        return list(categories)
+        cats = set()
+        for br in obj.branches.all():
+            for cr in br.courses.all():
+                if cr.category:
+                    cats.add(cr.category.name)
+        return list(cats)
 
 
 class LikeSerializer(serializers.ModelSerializer):
@@ -46,9 +82,7 @@ class EduTypeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EduType
-        fields = [
-            'id', 'name'
-        ]
+        fields = ['id', 'name']
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -56,9 +90,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = [
-            'id', 'name'
-        ]
+        fields = ['id', 'name']
 
 
 class LevelSerializer(serializers.ModelSerializer):
@@ -66,9 +98,7 @@ class LevelSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Level
-        fields = [
-            'id', 'name'
-        ]
+        fields = ['id', 'name']
 
 
 class DaySerializer(serializers.ModelSerializer):
@@ -81,13 +111,13 @@ class DaySerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'display_name']
 
 
-class TeacherSerializer(serializers.ModelSerializer):
+class TeacherSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = Teacher
         fields = ['id', 'name', 'gender', 'branch']
 
 
-class CourseSerializer(serializers.ModelSerializer):
+class CourseSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
     final_price = serializers.DecimalField(
         read_only=True, max_digits=10, decimal_places=2)
     available_places = serializers.IntegerField(read_only=True)
@@ -119,12 +149,11 @@ class CourseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Course
-        exclude = ['is_archived', 'branch', 'category', 'level', 'teacher']
+        exclude = ['is_archived']
+        read_only_fields = ['booked_places']
 
     def get_branch_name(self, obj):
-        if obj.branch and obj.branch.edu_center:
-            return f"{obj.branch.name} - {obj.branch.edu_center.name}"
-        return None
+        return f"{obj.branch.name} - {obj.branch.edu_center.name}" if obj.branch and obj.branch.edu_center else None
 
     def get_work_time(self, obj):
         return obj.branch.work_time if obj.branch else None
@@ -147,25 +176,20 @@ class CourseSerializer(serializers.ModelSerializer):
     def get_duration_months(self, obj):
         if obj.start_date and obj.end_date:
             delta = relativedelta(obj.end_date, obj.start_date)
-            months = delta.years * 12 + delta.months
-            if delta.days > 0:
-                months += 1
+            months = delta.years * 12 + delta.months + \
+                (1 if delta.days > 0 else 0)
             return months
         return None
 
     def get_edu_center_logo(self, obj):
-        request = self.context.get('request')
-        logo_url = obj.branch.edu_center.logo.url if obj.branch.edu_center.logo else None
-        if request and logo_url:
-            return request.build_absolute_uri(logo_url)
-        return logo_url
+        req = self.context.get('request')
+        url = obj.branch.edu_center.logo.url if obj.branch.edu_center.logo else None
+        return req.build_absolute_uri(url) if req and url else url
 
     def get_cover(self, obj):
-        request = self.context.get('request')
-        cover_url = obj.branch.edu_center.cover.url if obj.branch.edu_center.cover else None
-        if request and cover_url:
-            return request.build_absolute_uri(cover_url)
-        return cover_url
+        req = self.context.get('request')
+        url = obj.branch.edu_center.cover.url if obj.branch.edu_center.cover else None
+        return req.build_absolute_uri(url) if req and url else url
 
     def get_latitude(self, obj):
         return float(obj.branch.latitude) if obj.branch and obj.branch.latitude else None
@@ -177,7 +201,7 @@ class CourseSerializer(serializers.ModelSerializer):
         return obj.branch.phone_number if obj.branch and obj.branch.phone_number else None
 
     def get_telegram_link(self, obj):
-        return obj.branch.edu_center.telegram_link if obj.branch and obj.branch.edu_center and obj.branch.edu_center.telegram_link else None
+        return obj.branch.edu_center.telegram_link if obj.branch.edu_center.telegram_link else None
 
     def get_google_map(self, obj):
         if obj.branch and obj.branch.latitude and obj.branch.longitude:
@@ -190,54 +214,74 @@ class CourseSerializer(serializers.ModelSerializer):
         return None
 
 
-class EventSerializer(serializers.ModelSerializer):
-    edu_center_logo = serializers.SerializerMethodField()
-    edu_center_name = serializers.SerializerMethodField()
-    telegram_link = serializers.SerializerMethodField()
-    phone_number = serializers.SerializerMethodField()
-    google_map = serializers.SerializerMethodField()
-    yandex_map = serializers.SerializerMethodField()
-    latitude = serializers.SerializerMethodField()
-    longitude = serializers.SerializerMethodField()
+class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
+    edu_center = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Event
         fields = [
-            'id', 'name', 'picture', 'start_time', 'date',
+            'id', 'name', 'picture', 'date', 'start_time',
             'requirements', 'price', 'description', 'link',
-            'is_archived', 'latitude', 'longitude',  'edu_center_name', 'edu_center_logo',
-            'telegram_link', 'phone_number', 'google_map', 'yandex_map'
+            'branch', 'edu_center', 'categories', 'is_archived',
         ]
 
-    def get_edu_center_name(self, obj):
-        return obj.edu_center.name if obj.edu_center else None
+    def get_edu_center(self, obj):
+        return obj.branch.edu_center.id if obj.branch and obj.branch.edu_center else None
 
-    def get_edu_center_logo(self, obj):
-        request = self.context.get('request')
-        logo_url = obj.edu_center.logo.url if obj.edu_center and obj.edu_center.logo else None
-        if request and logo_url:
-            return request.build_absolute_uri(logo_url)
-        return logo_url
+    def create(self, validated_data):
+        categories = validated_data.pop('categories', [])
+        branch = validated_data['branch']
+        validated_data['edu_center'] = branch.edu_center
+        event = super().create(validated_data)
+        event.categories.set(categories)
+        return event
 
-    def get_telegram_link(self, obj):
-        return obj.edu_center.telegram_link if obj.edu_center and obj.edu_center.telegram_link else None
 
-    def get_phone_number(self, obj):
-        return obj.branch.phone_number if obj.branch and obj.branch.phone_number else None
+class TeacherDashboardSerializer(serializers.ModelSerializer):
+    branch = serializers.CharField(source='branch.name', read_only=True)
 
-    def get_google_map(self, obj):
-        if obj.branch and obj.branch.latitude and obj.branch.longitude:
-            return f"https://www.google.com/maps/dir/?api=1&destination={obj.branch.latitude},{obj.branch.longitude}"
-        return None
+    class Meta:
+        model = Teacher
+        fields = ['id', 'name', 'gender', 'branch']
 
-    def get_yandex_map(self, obj):
-        if obj.branch and obj.branch.latitude and obj.branch.longitude:
-            return f"https://yandex.com/maps/?rtext=~{obj.branch.latitude},{obj.branch.longitude}"
-        return None
 
-    def get_latitude(self, obj):
-        return float(obj.branch.latitude) if obj.branch and obj.branch.latitude else None
+class CourseDashboardSerializer(serializers.ModelSerializer):
+    branch = serializers.CharField(source='branch.name', read_only=True)
+    teacher = serializers.CharField(source='teacher.name', read_only=True)
 
-    def get_longitude(self, obj):
-        return float(obj.branch.longitude) if obj.branch and obj.branch.longitude else None
-    
+    class Meta:
+        model = Course
+        fields = [
+            'id', 'name', 'category', 'level', 'days',
+            'start_date', 'end_date', 'total_places', 'booked_places',
+            'price', 'discount', 'start_time', 'end_time', 'intensive',
+            'branch', 'teacher'
+        ]
+
+
+class EventDashboardSerializer(serializers.ModelSerializer):
+    branch = serializers.CharField(source='branch.name', read_only=True)
+    edu_center = serializers.CharField(
+        source='edu_center.name', read_only=True)
+
+    class Meta:
+        model = Event
+        fields = [
+            'id', 'name', 'picture', 'date', 'start_time',
+            'requirements', 'price', 'branch', 'edu_center'
+        ]
+
+
+class EnrollmentSerializer(serializers.ModelSerializer):
+    user_full_name = serializers.CharField(
+        source='user.full_name',    read_only=True)
+    user_phone = serializers.CharField(
+        source='user.phone_number', read_only=True)
+    course_name = serializers.CharField(
+        source='course.name',       read_only=True)
+
+    class Meta:
+        model = Enrollment
+        fields = ['id', 'user_full_name',
+                  'user_phone', 'course_name', 'applied_at']
+        read_only_fields = fields

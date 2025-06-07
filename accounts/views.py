@@ -16,7 +16,7 @@ from django.contrib.auth import get_user_model
 
 
 from .serializers import EduCenterCreateSerializer, BranchCreateSerializer
-from .permissions import IsEduCenter, IsSuperUser
+from .permissions import IsEduCenterOrReadOnly, IsSuperUser
 from main.models import EducationCenter, Branch, Like, View, Course
 from api.serializers import LikeSerializer, ViewSerializer, EducationCenterSerializer
 from api.paginations import DefaultPagination
@@ -112,24 +112,30 @@ class ViewViewSet(ModelViewSet):
 
 
 class BranchViewSet(ModelViewSet):
+    """
+    GET (list/retrieve):   hammaga (shu jumladan student/anonim) ochiq.
+    POST/PUT/PATCH/DELETE:  faqat EDU_CENTER.
+    """
+    queryset = Branch.objects.all()
     serializer_class = BranchCreateSerializer
-    permission_classes = [IsEduCenter]
+    permission_classes = [IsEduCenterOrReadOnly]
 
     def get_queryset(self):
+        qs = super().get_queryset()
         user = self.request.user
+        # Edu center admini o‘z markazi filiallarini boshqaradi:
         if user.is_authenticated and user.role == 'EDU_CENTER':
-            edu_center = EducationCenter.objects.filter(user=user).first()
-            if edu_center:
-                return Branch.objects.filter(edu_center=edu_center)
-        return Branch.objects.none()
+            return qs.filter(edu_center__user=user)
+        # STUDENT/BRANCH/anonim: barcha filiallarni list qiladi
+        return qs
 
     def perform_create(self, serializer):
-        edu_center = EducationCenter.objects.filter(
-            user=self.request.user).first()
-        if not edu_center:
+        user = self.request.user
+        ec = EducationCenter.objects.filter(user=user).first()
+        if not ec:
             raise PermissionDenied(
                 "Sizga biriktirilgan Education Center mavjud emas.")
-        serializer.save(edu_center=edu_center)
+        serializer.save(edu_center=ec)
 
 
 class MyCoursesView(generics.ListAPIView):
