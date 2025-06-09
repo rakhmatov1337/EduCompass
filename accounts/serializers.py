@@ -161,7 +161,7 @@ class MyCourseSerializer(serializers.ModelSerializer):
                   'level', 'days', 'start_time', 'logo_url']
 
     def get_days(self, obj):
-        return [day.name[:2].capitalize() for day in obj.course.days.all()]
+        return [day.name[:3].capitalize() for day in obj.course.days.all()]
 
     def get_start_time(self, obj):
         return obj.course.start_time.strftime("%H:%M") if obj.course.start_time else None
