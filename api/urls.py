@@ -8,13 +8,13 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenBlacklistView
 )
-from accounts.views import RegisterView, MyCoursesView  
+from accounts.views import RegisterView, MyCoursesView
 
 from main.views import (
     EduTypeViewSet, CategoryViewSet,
-    LevelViewSet, DayViewSet, TeacherViewSet, CourseViewSet, CourseFilterSchemaView, EventViewSet, EventFilterSchemaView
+    LevelViewSet, DayViewSet, TeacherViewSet, CourseViewSet, CourseFilterSchemaView, EventViewSet, EventFilterSchemaView, AppliedStudentViewSet
 )
-from accounts.views import EduCenterViewSet, BranchViewSet, LikeViewSet, ViewViewSet, EduCenterCreateView
+from accounts.views import EduCenterViewSet, BranchViewSet, LikeViewSet, ViewViewSet, EduCenterCreateView, CurrentUserRetrieveUpdateView
 
 
 router = routers.DefaultRouter()
@@ -27,6 +27,8 @@ router.register('branches', BranchViewSet, basename='branches')
 router.register('courses', CourseViewSet, basename='courses')
 router.register('edu-centers', EduCenterViewSet, basename='edu-centers')
 router.register('events', EventViewSet, basename='event')
+router.register('applied-students', AppliedStudentViewSet,
+                basename='applied-students')
 
 edu_center_router = routers.NestedDefaultRouter(
     router, r'edu-centers', lookup='edu_center'
@@ -46,8 +48,7 @@ urlpatterns = [
     path('auth/refresh/',  TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/logout/',   TokenBlacklistView.as_view(), name='auth_logout'),
     path('auth/register/', RegisterView.as_view(), name='auth_register'),
-    path('auth/me/',       UserViewSet.as_view(
-        {'get': 'me', 'put': 'update', 'patch': 'partial_update'}), name='auth_current_user'),
-    path('auth/me/my-courses/', MyCoursesView.as_view(), name='auth_my_courses'),
+    path('auth/me/', CurrentUserRetrieveUpdateView.as_view(),
+         name='auth_current_user'),
 
 ] + router.urls + edu_center_router.urls

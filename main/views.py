@@ -24,7 +24,7 @@ from api.serializers import (
     DaySerializer,
     TeacherSerializer,
     CourseSerializer,
-    EventSerializer
+    EventSerializer, AppliedStudentSerializer
 )
 from accounts.serializers import EmptySerializer, MyCourseSerializer
 from api.permissions import IsSuperUserOrReadOnly, IsEduCenterBranchOrReadOnly
@@ -242,3 +242,19 @@ class EventFilterSchemaView(APIView):
             'edu_center_id': 'comma–separated center IDs',
             'category':     'category filter',
         })
+
+
+class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = AppliedStudentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Enrollment.objects.select_related(
+            'user', 'course', 'course__branch', 'course__branch__edu_center')
+
+        if user.role == 'EDU_CENTER':
+            return qs.filter(course__branch__edu_center__user=user)
+        elif user.role == 'BRANCH':
+            return qs.filter(course__branch__admins=user)
+        return qs.none()

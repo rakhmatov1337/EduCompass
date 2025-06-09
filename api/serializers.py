@@ -285,3 +285,15 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         fields = ['id', 'user_full_name',
                   'user_phone', 'course_name', 'applied_at']
         read_only_fields = fields
+
+
+class AppliedStudentSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source='user.full_name', read_only=True)
+    phone_number = serializers.CharField(
+        source='user.phone_number', read_only=True)
+    course_name = serializers.CharField(source='course.name', read_only=True)
+
+    class Meta:
+        model = Enrollment
+        fields = ['id', 'full_name', 'phone_number',
+                  'course_name', 'applied_at']

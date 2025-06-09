@@ -9,13 +9,13 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView
 from django.db.models import Count, Prefetch
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
 
 
-from .serializers import EduCenterCreateSerializer, BranchCreateSerializer
+from .serializers import EduCenterCreateSerializer, BranchCreateSerializer, UserSerializer
 from .permissions import IsEduCenterOrReadOnly, IsSuperUser
 from main.models import EducationCenter, Branch, Like, View, Course
 from api.serializers import LikeSerializer, ViewSerializer, EducationCenterSerializer
@@ -165,3 +165,11 @@ class RegisterView(generics.CreateAPIView):
             },
             status=status.HTTP_201_CREATED
         )
+
+
+class CurrentUserRetrieveUpdateView(RetrieveUpdateAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
