@@ -148,6 +148,7 @@ class BranchCreateSerializer(serializers.ModelSerializer):
 
 
 class MyCourseSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='course.id', read_only=True)
     course_name = serializers.CharField(source='course.name', read_only=True)
     level = serializers.CharField(source='course.level.name', read_only=True)
     days = serializers.SerializerMethodField()
@@ -156,7 +157,8 @@ class MyCourseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Enrollment
-        fields = ['course_name', 'level', 'days', 'start_time', 'logo_url']
+        fields = ['id', 'course_name',
+                  'level', 'days', 'start_time', 'logo_url']
 
     def get_days(self, obj):
         return [day.name[:2].capitalize() for day in obj.course.days.all()]
@@ -177,7 +179,7 @@ class MyCourseSerializer(serializers.ModelSerializer):
             return None
 
         request = self.context.get('request')
-        logo_url = logo_field.url 
+        logo_url = logo_field.url
         return request.build_absolute_uri(logo_url) if request else logo_url
 
 

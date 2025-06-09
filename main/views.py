@@ -117,11 +117,6 @@ class TeacherViewSet(viewsets.ModelViewSet):
 @method_decorator(name='partial_update',  decorator=swagger_auto_schema(operation_summary="Partially update a course", tags=["Course"]))
 @method_decorator(name='destroy',         decorator=swagger_auto_schema(operation_summary="Delete a course", tags=["Course"]))
 class CourseViewSet(viewsets.ModelViewSet):
-    """
-    list/retrieve:    AllowAny
-    create/update:    EDU_CENTER or BRANCH
-    apply/my_courses: any Authenticated user
-    """
     queryset = (
         Course.objects.filter(is_archived=False)
         .select_related('branch', 'branch__edu_center', 'teacher', 'category', 'level')
@@ -141,7 +136,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         if self.action in ['apply', 'my_courses']:
             return [IsAuthenticated()]
-        # create / update / delete
         return [IsAuthenticated(), IsEduCenterBranchOrReadOnly()]
 
     def get_queryset(self):
@@ -152,7 +146,6 @@ class CourseViewSet(viewsets.ModelViewSet):
                 return qs.filter(branch__edu_center__user=user)
             if user.role == 'BRANCH':
                 return qs.filter(branch__admins=user)
-        # STUDENT / anon: see all courses
         return qs
 
     @action(detail=True, methods=['post'], serializer_class=EmptySerializer)

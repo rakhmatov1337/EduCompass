@@ -216,17 +216,31 @@ class CourseSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer
 
 class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
     edu_center = serializers.SerializerMethodField(read_only=True)
+    edu_center_logo = serializers.SerializerMethodField(read_only=True)
+    category_names = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Event
         fields = [
             'id', 'name', 'picture', 'date', 'start_time',
             'requirements', 'price', 'description', 'link',
-            'branch', 'edu_center', 'categories', 'is_archived',
+            'branch', 'edu_center', 'edu_center_logo',
+            'categories', 'category_names', 'is_archived',
         ]
 
     def get_edu_center(self, obj):
         return obj.branch.edu_center.id if obj.branch and obj.branch.edu_center else None
+
+    def get_edu_center_logo(self, obj):
+        ec = getattr(obj.branch, 'edu_center', None)
+        if not ec or not ec.logo:
+            return None
+        request = self.context.get('request')
+        url = ec.logo.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_category_names(self, obj):
+        return [cat.name for cat in obj.categories.all()]
 
     def create(self, validated_data):
         categories = validated_data.pop('categories', [])
@@ -235,6 +249,7 @@ class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer)
         event = super().create(validated_data)
         event.categories.set(categories)
         return event
+
 
 
 class TeacherDashboardSerializer(serializers.ModelSerializer):
