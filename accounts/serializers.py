@@ -153,12 +153,12 @@ class MyCourseSerializer(serializers.ModelSerializer):
     level = serializers.CharField(source='course.level.name', read_only=True)
     days = serializers.SerializerMethodField()
     start_time = serializers.SerializerMethodField()
-    logo_url = serializers.SerializerMethodField()
+    edu_center_logo = serializers.SerializerMethodField()
 
     class Meta:
         model = Enrollment
         fields = ['id', 'course_name',
-                  'level', 'days', 'start_time', 'logo_url']
+                  'level', 'days', 'start_time', 'edu_center_logo']
 
     def get_days(self, obj):
         return [day.name[:3].capitalize() for day in obj.course.days.all()]
@@ -166,7 +166,7 @@ class MyCourseSerializer(serializers.ModelSerializer):
     def get_start_time(self, obj):
         return obj.course.start_time.strftime("%H:%M") if obj.course.start_time else None
 
-    def get_logo_url(self, obj):
+    def get_edu_center_logo(self, obj):
         branch = getattr(obj.course, 'branch', None)
         if not branch:
             return None

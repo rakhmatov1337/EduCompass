@@ -16,7 +16,6 @@ class DynamicBranchSerializerMixin:
         user = getattr(request, 'user', None)
         if not user or not user.is_authenticated:
             return
-        # Agar serializer’da branch maydoni bo‘lmasa, toshlamaydi
         if 'branch' not in self.fields:
             return
 
@@ -27,14 +26,12 @@ class DynamicBranchSerializerMixin:
                 required=True
             )
         elif user.role == 'BRANCH':
-            # BRANCH: yashirin maydon, default = first branch
             own_branch = user.branches.first()
             if not own_branch:
                 raise serializers.ValidationError(
                     "Sizga oid filial topilmadi.")
             self.fields['branch'] = serializers.HiddenField(default=own_branch)
         else:
-            # STUDENT/Anonim: global, lekin CRUD uchun kerak bo‘lmaydi
             self.fields['branch'] = serializers.PrimaryKeyRelatedField(
                 queryset=Branch.objects.all(),
                 required=False
