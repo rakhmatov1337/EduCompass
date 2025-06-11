@@ -6,13 +6,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('main', '0009_rename_time_event_start_time_remove_event_location_and_more'),
+        ("main", "0009_rename_time_event_start_time_remove_event_location_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='event',
-            name='categories',
-            field=models.ManyToManyField(blank=True, related_name='events', to='main.category'),
+            model_name="event",
+            name="categories",
+            field=models.ManyToManyField(
+                blank=True, related_name="events", to="main.category"
+            ),
         ),
     ]

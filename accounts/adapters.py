@@ -6,9 +6,9 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         user = super().populate_user(request, sociallogin, data)
 
         # Emailni username sifatida belgilaymiz
-        user.username = data.get('email') or data.get('id')
+        user.username = data.get("email") or data.get("id")
 
         # Rolni STUDENT qilib belgilaymiz
-        user.role = 'STUDENT'
+        user.role = "STUDENT"
 
         return user

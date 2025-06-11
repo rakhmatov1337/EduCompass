@@ -19,7 +19,7 @@ from rest_framework import permissions
 schema_view = get_schema_view(
     openapi.Info(
         title="EduCompass API",
-        default_version='v1',
+        default_version="v1",
         description="EduCompass platformasi uchun avtomatik API hujjatlari",
         contact=openapi.Contact(email="support@educompas.uz"),
         license=openapi.License(name="BSD License"),
@@ -29,19 +29,19 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', include(main_urls)),
-    path('api/', include(api_urls)),
-    path('accounts/', include(accounts_urls)),
-    path('dashboard/', include(dashboard_urls)),
-    path('swagger.json', schema_view.without_ui(
-        cache_timeout=0), name='schema-json'),
-    path('swagger/',     schema_view.with_ui('swagger',
-         cache_timeout=0), name='schema-swagger-ui'),
-    path('redoc/',       schema_view.with_ui('redoc',
-         cache_timeout=0), name='schema-redoc'),
+    path("admin/", admin.site.urls),
+    path("", include(main_urls)),
+    path("api/", include(api_urls)),
+    path("accounts/", include(accounts_urls)),
+    path("dashboard/", include(dashboard_urls)),
+    path("swagger.json", schema_view.without_ui(cache_timeout=0), name="schema-json"),
+    path(
+        "swagger/",
+        schema_view.with_ui("swagger", cache_timeout=0),
+        name="schema-swagger-ui",
+    ),
+    path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
 ]
 if settings.DEBUG:
-    urlpatterns += [path('__debug__/', include(debug_toolbar.urls))]
-    urlpatterns += static(settings.MEDIA_URL,
-                          document_root=settings.MEDIA_ROOT)
+    urlpatterns += [path("__debug__/", include(debug_toolbar.urls))]
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

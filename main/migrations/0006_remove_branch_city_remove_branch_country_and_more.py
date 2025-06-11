@@ -6,30 +6,34 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('main', '0005_alter_educationcenter_cover_and_more'),
+        ("main", "0005_alter_educationcenter_cover_and_more"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='branch',
-            name='city',
+            model_name="branch",
+            name="city",
         ),
         migrations.RemoveField(
-            model_name='branch',
-            name='country',
+            model_name="branch",
+            name="country",
         ),
         migrations.RemoveField(
-            model_name='branch',
-            name='region',
+            model_name="branch",
+            name="region",
         ),
         migrations.AddField(
-            model_name='branch',
-            name='latitude',
-            field=models.DecimalField(blank=True, decimal_places=7, max_digits=10, null=True),
+            model_name="branch",
+            name="latitude",
+            field=models.DecimalField(
+                blank=True, decimal_places=7, max_digits=10, null=True
+            ),
         ),
         migrations.AddField(
-            model_name='branch',
-            name='longitude',
-            field=models.DecimalField(blank=True, decimal_places=7, max_digits=10, null=True),
+            model_name="branch",
+            name="longitude",
+            field=models.DecimalField(
+                blank=True, decimal_places=7, max_digits=10, null=True
+            ),
         ),
     ]

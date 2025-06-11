@@ -7,34 +7,45 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('main', '0008_branch_telegram_link'),
+        ("main", "0008_branch_telegram_link"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='event',
-            old_name='time',
-            new_name='start_time',
+            model_name="event",
+            old_name="time",
+            new_name="start_time",
         ),
         migrations.RemoveField(
-            model_name='event',
-            name='location',
+            model_name="event",
+            name="location",
         ),
         migrations.AddField(
-            model_name='event',
-            name='branch',
-            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.CASCADE, related_name='events', to='main.branch'),
+            model_name="event",
+            name="branch",
+            field=models.ForeignKey(
+                default=1,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="events",
+                to="main.branch",
+            ),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='event',
-            name='price',
-            field=models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True),
+            model_name="event",
+            name="price",
+            field=models.DecimalField(
+                blank=True, decimal_places=2, max_digits=10, null=True
+            ),
         ),
         migrations.AddField(
-            model_name='event',
-            name='requirements',
-            field=models.CharField(choices=[('FREE', 'Bepul'), ('PAYED', 'Pullik')], default=1, max_length=10),
+            model_name="event",
+            name="requirements",
+            field=models.CharField(
+                choices=[("FREE", "Bepul"), ("PAYED", "Pullik")],
+                default=1,
+                max_length=10,
+            ),
             preserve_default=False,
         ),
     ]

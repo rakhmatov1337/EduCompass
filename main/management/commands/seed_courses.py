@@ -7,7 +7,7 @@ import random
 
 
 class Command(BaseCommand):
-    help = 'Creates 50 fake Course records'
+    help = "Creates 50 fake Course records"
 
     def handle(self, *args, **options):
         fake = Faker()
@@ -19,14 +19,15 @@ class Command(BaseCommand):
         days = list(Day.objects.all())
 
         if not (branches and teachers and categories and levels and days):
-            self.stdout.write(self.style.ERROR(
-                "❌ Iltimos, avval branch, teacher, category, level va day obyektlarini yarating!"
-            ))
+            self.stdout.write(
+                self.style.ERROR(
+                    "❌ Iltimos, avval branch, teacher, category, level va day obyektlarini yarating!"
+                )
+            )
             return
 
         for _ in range(50):
-            start_time = fake.date_time_between(
-                start_date='-30d', end_date='+30d')
+            start_time = fake.date_time_between(start_date="-30d", end_date="+30d")
             end_time = start_time + timedelta(hours=2)
 
             course = Course.objects.create(
@@ -42,5 +43,6 @@ class Command(BaseCommand):
             )
             course.days.set(random.sample(days, k=random.randint(1, 3)))
 
-        self.stdout.write(self.style.SUCCESS(
-            "✅ 50 ta Course muvaffaqiyatli yaratildi."))
+        self.stdout.write(
+            self.style.SUCCESS("✅ 50 ta Course muvaffaqiyatli yaratildi.")
+        )

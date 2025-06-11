@@ -7,18 +7,36 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('main', '0004_alter_course_unique_together_and_more'),
+        ("main", "0004_alter_course_unique_together_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='educationcenter',
-            name='cover',
-            field=models.ImageField(blank=True, null=True, upload_to='education_centers/banners/', validators=[django.core.validators.FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp'])]),
+            model_name="educationcenter",
+            name="cover",
+            field=models.ImageField(
+                blank=True,
+                null=True,
+                upload_to="education_centers/banners/",
+                validators=[
+                    django.core.validators.FileExtensionValidator(
+                        allowed_extensions=["jpg", "jpeg", "png", "webp"]
+                    )
+                ],
+            ),
         ),
         migrations.AlterField(
-            model_name='educationcenter',
-            name='logo',
-            field=models.ImageField(blank=True, null=True, upload_to='education_centers/logos/', validators=[django.core.validators.FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp'])]),
+            model_name="educationcenter",
+            name="logo",
+            field=models.ImageField(
+                blank=True,
+                null=True,
+                upload_to="education_centers/logos/",
+                validators=[
+                    django.core.validators.FileExtensionValidator(
+                        allowed_extensions=["jpg", "jpeg", "png", "webp"]
+                    )
+                ],
+            ),
         ),
     ]

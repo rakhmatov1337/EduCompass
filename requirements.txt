@@ -54,3 +54,5 @@ django-rest-framework-nested
 drf-nested-routers
 Pillow
 aiogram
+safety
+black

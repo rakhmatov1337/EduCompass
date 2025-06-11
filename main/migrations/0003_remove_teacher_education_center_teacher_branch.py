@@ -7,18 +7,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('main', '0002_alter_educationcenter_categories'),
+        ("main", "0002_alter_educationcenter_categories"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='teacher',
-            name='education_center',
+            model_name="teacher",
+            name="education_center",
         ),
         migrations.AddField(
-            model_name='teacher',
-            name='branch',
-            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.CASCADE, related_name='teachers', to='main.branch'),
+            model_name="teacher",
+            name="branch",
+            field=models.ForeignKey(
+                default=1,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="teachers",
+                to="main.branch",
+            ),
             preserve_default=False,
         ),
     ]

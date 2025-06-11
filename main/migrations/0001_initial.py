@@ -11,151 +11,417 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('contenttypes', '0002_remove_content_type_name'),
+        ("contenttypes", "0002_remove_content_type_name"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Banner',
+            name="Banner",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('image', models.ImageField(upload_to='banners/')),
-                ('language_code', models.CharField(choices=[('uz', 'Uzbek'), ('en', 'English'), ('ru', 'Russian')], default='uz', max_length=10)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("image", models.ImageField(upload_to="banners/")),
+                (
+                    "language_code",
+                    models.CharField(
+                        choices=[("uz", "Uzbek"), ("en", "English"), ("ru", "Russian")],
+                        default="uz",
+                        max_length=10,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Category',
+            name="Category",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, unique=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255, unique=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Day',
+            name="Day",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(choices=[('MONDAY', 'Monday'), ('TUESDAY', 'Tuesday'), ('WEDNESDAY', 'Wednesday'), ('THURSDAY', 'Thursday'), ('FRIDAY', 'Friday'), ('SATURDAY', 'Saturday'), ('SUNDAY', 'Sunday')], max_length=10)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        choices=[
+                            ("MONDAY", "Monday"),
+                            ("TUESDAY", "Tuesday"),
+                            ("WEDNESDAY", "Wednesday"),
+                            ("THURSDAY", "Thursday"),
+                            ("FRIDAY", "Friday"),
+                            ("SATURDAY", "Saturday"),
+                            ("SUNDAY", "Sunday"),
+                        ],
+                        max_length=10,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='EduType',
+            name="EduType",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, unique=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255, unique=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Level',
+            name="Level",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, unique=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255, unique=True)),
             ],
         ),
         migrations.CreateModel(
-            name='EducationCenter',
+            name="EducationCenter",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('description', models.TextField(blank=True)),
-                ('country', models.CharField(max_length=255)),
-                ('region', models.CharField(max_length=255)),
-                ('city', models.CharField(max_length=255)),
-                ('phone_number', models.CharField(blank=True, max_length=15, null=True, validators=[django.core.validators.RegexValidator(message="Phone number must be entered in the format: '+998911234567'. Up to 12 digits allowed.", regex='^\\+?1?\\d{9,15}$')])),
-                ('logo', models.ImageField(blank=True, null=True, upload_to='education_centers/logos/')),
-                ('cover', models.ImageField(blank=True, null=True, upload_to='education_centers/banners/')),
-                ('instagram_link', models.URLField(blank=True, max_length=255, null=True)),
-                ('telegram_link', models.URLField(blank=True, max_length=255, null=True)),
-                ('facebook_link', models.URLField(blank=True, max_length=255, null=True)),
-                ('website_link', models.URLField(blank=True, max_length=255, null=True)),
-                ('active', models.BooleanField(default=True)),
-                ('order', models.IntegerField(default=0)),
-                ('categories', models.ManyToManyField(related_name='education_centers', to='main.category')),
-                ('user', models.ForeignKey(limit_choices_to={'role': 'EDU_CENTER'}, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='education_center', to=settings.AUTH_USER_MODEL)),
-                ('edu_type', models.ManyToManyField(related_name='education_centers', to='main.edutype')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("description", models.TextField(blank=True)),
+                ("country", models.CharField(max_length=255)),
+                ("region", models.CharField(max_length=255)),
+                ("city", models.CharField(max_length=255)),
+                (
+                    "phone_number",
+                    models.CharField(
+                        blank=True,
+                        max_length=15,
+                        null=True,
+                        validators=[
+                            django.core.validators.RegexValidator(
+                                message="Phone number must be entered in the format: '+998911234567'. Up to 12 digits allowed.",
+                                regex="^\\+?1?\\d{9,15}$",
+                            )
+                        ],
+                    ),
+                ),
+                (
+                    "logo",
+                    models.ImageField(
+                        blank=True, null=True, upload_to="education_centers/logos/"
+                    ),
+                ),
+                (
+                    "cover",
+                    models.ImageField(
+                        blank=True, null=True, upload_to="education_centers/banners/"
+                    ),
+                ),
+                (
+                    "instagram_link",
+                    models.URLField(blank=True, max_length=255, null=True),
+                ),
+                (
+                    "telegram_link",
+                    models.URLField(blank=True, max_length=255, null=True),
+                ),
+                (
+                    "facebook_link",
+                    models.URLField(blank=True, max_length=255, null=True),
+                ),
+                (
+                    "website_link",
+                    models.URLField(blank=True, max_length=255, null=True),
+                ),
+                ("active", models.BooleanField(default=True)),
+                ("order", models.IntegerField(default=0)),
+                (
+                    "categories",
+                    models.ManyToManyField(
+                        related_name="education_centers", to="main.category"
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        limit_choices_to={"role": "EDU_CENTER"},
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="education_center",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "edu_type",
+                    models.ManyToManyField(
+                        related_name="education_centers", to="main.edutype"
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Branch',
+            name="Branch",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('country', models.CharField(max_length=255)),
-                ('region', models.CharField(max_length=255)),
-                ('city', models.CharField(max_length=255)),
-                ('admins', models.ManyToManyField(limit_choices_to={'role': 'BRANCH'}, related_name='branches', to=settings.AUTH_USER_MODEL)),
-                ('edu_center', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='branches', to='main.educationcenter')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("country", models.CharField(max_length=255)),
+                ("region", models.CharField(max_length=255)),
+                ("city", models.CharField(max_length=255)),
+                (
+                    "admins",
+                    models.ManyToManyField(
+                        limit_choices_to={"role": "BRANCH"},
+                        related_name="branches",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "edu_center",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="branches",
+                        to="main.educationcenter",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Event',
+            name="Event",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('picture', models.ImageField(upload_to='events/')),
-                ('date', models.DateField()),
-                ('time', models.TimeField()),
-                ('description', models.TextField()),
-                ('link', models.URLField(blank=True, max_length=255, null=True)),
-                ('location', models.CharField(blank=True, max_length=255, null=True)),
-                ('is_archived', models.BooleanField(default=False)),
-                ('edu_center', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='events', to='main.educationcenter')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("picture", models.ImageField(upload_to="events/")),
+                ("date", models.DateField()),
+                ("time", models.TimeField()),
+                ("description", models.TextField()),
+                ("link", models.URLField(blank=True, max_length=255, null=True)),
+                ("location", models.CharField(blank=True, max_length=255, null=True)),
+                ("is_archived", models.BooleanField(default=False)),
+                (
+                    "edu_center",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="events",
+                        to="main.educationcenter",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Like',
+            name="Like",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('object_id', models.PositiveIntegerField()),
-                ('liked_at', models.DateTimeField(auto_now_add=True)),
-                ('content_type', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='contenttypes.contenttype')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("object_id", models.PositiveIntegerField()),
+                ("liked_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "content_type",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="contenttypes.contenttype",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Teacher',
+            name="Teacher",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('gender', models.CharField(choices=[('MALE', 'Male'), ('FEMALE', 'Female')], max_length=6)),
-                ('education_center', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='teachers', to='main.educationcenter')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                (
+                    "gender",
+                    models.CharField(
+                        choices=[("MALE", "Male"), ("FEMALE", "Female")], max_length=6
+                    ),
+                ),
+                (
+                    "education_center",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="teachers",
+                        to="main.educationcenter",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='View',
+            name="View",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('object_id', models.PositiveIntegerField()),
-                ('viewed_at', models.DateTimeField(auto_now_add=True)),
-                ('content_type', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='contenttypes.contenttype')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("object_id", models.PositiveIntegerField()),
+                ("viewed_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "content_type",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="contenttypes.contenttype",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Course',
+            name="Course",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('start_date', models.DateField(blank=True, null=True)),
-                ('end_date', models.DateField(blank=True, null=True)),
-                ('booked_places', models.IntegerField(default=0)),
-                ('total_places', models.IntegerField()),
-                ('price', models.DecimalField(decimal_places=2, max_digits=10)),
-                ('discount', models.DecimalField(decimal_places=2, default=0, max_digits=10)),
-                ('start_time', models.TimeField()),
-                ('end_time', models.TimeField()),
-                ('intensive', models.BooleanField(default=False)),
-                ('is_archived', models.BooleanField(default=False)),
-                ('branch', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='courses', to='main.branch')),
-                ('category', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='courses', to='main.category')),
-                ('days', models.ManyToManyField(related_name='courses', to='main.day')),
-                ('edu_center', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='courses', to='main.educationcenter')),
-                ('level', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='courses', to='main.level')),
-                ('teacher', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='courses', to='main.teacher')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("start_date", models.DateField(blank=True, null=True)),
+                ("end_date", models.DateField(blank=True, null=True)),
+                ("booked_places", models.IntegerField(default=0)),
+                ("total_places", models.IntegerField()),
+                ("price", models.DecimalField(decimal_places=2, max_digits=10)),
+                (
+                    "discount",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=10),
+                ),
+                ("start_time", models.TimeField()),
+                ("end_time", models.TimeField()),
+                ("intensive", models.BooleanField(default=False)),
+                ("is_archived", models.BooleanField(default=False)),
+                (
+                    "branch",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="courses",
+                        to="main.branch",
+                    ),
+                ),
+                (
+                    "category",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="courses",
+                        to="main.category",
+                    ),
+                ),
+                ("days", models.ManyToManyField(related_name="courses", to="main.day")),
+                (
+                    "edu_center",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="courses",
+                        to="main.educationcenter",
+                    ),
+                ),
+                (
+                    "level",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="courses",
+                        to="main.level",
+                    ),
+                ),
+                (
+                    "teacher",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="courses",
+                        to="main.teacher",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['start_date'],
-                'unique_together': {('name', 'edu_center', 'branch')},
+                "ordering": ["start_date"],
+                "unique_together": {("name", "edu_center", "branch")},
             },
         ),
     ]
