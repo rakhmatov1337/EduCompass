@@ -1,21 +1,10 @@
+from dateutil.relativedelta import relativedelta
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
-from dateutil.relativedelta import relativedelta
 
-from main.models import (
-    EducationCenter,
-    Branch,
-    Teacher,
-    Course,
-    Event,
-    Category,
-    Day,
-    Level,
-    EduType,
-    Like,
-    View,
-)
-from main.models import Enrollment
+from main.models import (Branch, Category, Course, Day, EducationCenter,
+                         EduType, Enrollment, Event, Level, Like, Teacher,
+                         View)
 
 
 class DynamicBranchSerializerMixin:
@@ -263,12 +252,12 @@ class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer)
             "description",
             "link",
             "branch_name",
-            'phone_number',
+            "phone_number",
             "edu_center_name",
             "edu_center_logo",
             "category_names",
             "is_archived",
-            'telegram_link'
+            "telegram_link",
         ]
 
     def get_edu_center_name(self, obj):
@@ -283,13 +272,13 @@ class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer)
 
     def get_telegram_link(self, obj):
         return (
-            obj.branch.telegram_link if obj.branch and obj.branch.telegram_link else None
+            obj.branch.telegram_link
+            if obj.branch and obj.branch.telegram_link
+            else None
         )
 
     def get_branch_name(self, obj):
-        return (
-            obj.branch.name if obj.branch and obj.branch.name else None
-        )
+        return obj.branch.name if obj.branch and obj.branch.name else None
 
     def get_edu_center_logo(self, obj):
         ec = getattr(obj.branch, "edu_center", None)

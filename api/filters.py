@@ -1,7 +1,8 @@
-from django_filters.rest_framework import FilterSet, filters
-from main.models import Course, Day, Event
-from django.db.models import Q
 import django_filters
+from django.db.models import Q
+from django_filters.rest_framework import FilterSet, filters
+
+from main.models import Course, Day, Event
 
 
 class DayNameInFilter(filters.BaseInFilter, filters.CharFilter):

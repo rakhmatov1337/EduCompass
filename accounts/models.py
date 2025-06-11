@@ -1,10 +1,5 @@
-from django.contrib.auth.models import (
-    AbstractBaseUser,
-    PermissionsMixin,
-    BaseUserManager,
-    Group,
-    Permission,
-)
+from django.contrib.auth.models import (AbstractBaseUser, BaseUserManager,
+                                        Group, Permission, PermissionsMixin)
 from django.core.exceptions import ValidationError
 from django.db import models
 

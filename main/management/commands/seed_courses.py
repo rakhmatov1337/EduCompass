@@ -1,9 +1,10 @@
-from django.core.management.base import BaseCommand
-from datetime import datetime, timedelta
-from faker import Faker
-from main.models import Course, Category, Level, Day
-from main.models import Branch, Teacher
 import random
+from datetime import datetime, timedelta
+
+from django.core.management.base import BaseCommand
+from faker import Faker
+
+from main.models import Branch, Category, Course, Day, Level, Teacher
 
 
 class Command(BaseCommand):

@@ -1,37 +1,26 @@
-from django.shortcuts import get_object_or_404
 from django.db.models import F
-
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import AllowAny, IsAuthenticated
-
+from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from drf_yasg.utils import swagger_auto_schema
-from django.utils.decorators import method_decorator
-
-from main.models import EduType, Category, Level, Day, Teacher, Course, Event
-from main.models import Enrollment
-
-from api.serializers import (
-    EduTypeSerializer,
-    CategorySerializer,
-    LevelSerializer,
-    DaySerializer,
-    TeacherSerializer,
-    CourseSerializer,
-    EventSerializer,
-    AppliedStudentSerializer,
-)
 from accounts.serializers import EmptySerializer, MyCourseSerializer
-from api.permissions import IsSuperUserOrReadOnly, IsEduCenterBranchOrReadOnly
 from api.filters import CourseFilter, EventFilter
 from api.paginations import DefaultPagination
-
+from api.permissions import IsEduCenterBranchOrReadOnly, IsSuperUserOrReadOnly
+from api.serializers import (AppliedStudentSerializer, CategorySerializer,
+                             CourseSerializer, DaySerializer,
+                             EduTypeSerializer, EventSerializer,
+                             LevelSerializer, TeacherSerializer)
+from main.models import (Category, Course, Day, EduType, Enrollment, Event,
+                         Level, Teacher)
 
 # ─── EduType / Category / Level / Day ─────────────────────────────────────
 

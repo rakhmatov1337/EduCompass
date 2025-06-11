@@ -1,20 +1,18 @@
 # educompass/urls.py
 
-from django.contrib import admin
-from django.urls import path, include
+import debug_toolbar
 from django.conf import settings
 from django.conf.urls.static import static
-
-
-from main import urls as main_urls
-from api import urls as api_urls
-from accounts import urls as accounts_urls
-from dashboard import urls as dashboard_urls
-import debug_toolbar
-
-from drf_yasg.views import get_schema_view
+from django.contrib import admin
+from django.urls import include, path
 from drf_yasg import openapi
+from drf_yasg.views import get_schema_view
 from rest_framework import permissions
+
+from accounts import urls as accounts_urls
+from api import urls as api_urls
+from dashboard import urls as dashboard_urls
+from main import urls as main_urls
 
 schema_view = get_schema_view(
     openapi.Info(

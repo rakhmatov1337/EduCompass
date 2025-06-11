@@ -1,29 +1,24 @@
-from rest_framework_simplejwt.tokens import RefreshToken
-from accounts.serializers import UserCreateSerializer
-from rest_framework import generics, status
-from rest_framework import generics, permissions
-from .serializers import MyCourseSerializer
-from main.models import Enrollment
+from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
+from django.db.models import Count, Prefetch
 from django.shortcuts import get_object_or_404
+from rest_framework import generics, permissions, status
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView
-from django.db.models import Count, Prefetch
-from django.contrib.contenttypes.models import ContentType
-from django.contrib.auth import get_user_model
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+from rest_framework_simplejwt.tokens import RefreshToken
 
-
-from .serializers import (
-    EduCenterCreateSerializer,
-    BranchCreateSerializer,
-    UserSerializer,
-)
-from .permissions import IsEduCenterOrReadOnly, IsSuperUser
-from main.models import EducationCenter, Branch, Like, View, Course
-from api.serializers import LikeSerializer, ViewSerializer, EducationCenterSerializer
+from accounts.serializers import UserCreateSerializer
 from api.paginations import DefaultPagination
+from api.serializers import (EducationCenterSerializer, LikeSerializer,
+                             ViewSerializer)
+from main.models import Branch, Course, EducationCenter, Enrollment, Like, View
+
+from .permissions import IsEduCenterOrReadOnly, IsSuperUser
+from .serializers import (BranchCreateSerializer, EduCenterCreateSerializer,
+                          MyCourseSerializer, UserSerializer)
 
 User = get_user_model()
 

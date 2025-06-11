@@ -1,0 +1,5 @@
+# Barqaror satr yakunlari: Python fayllari uchun LF
+*.py text eol=lf
+
+# Boshqa fayllarda Git sozlamalariga (core.autocrlf) qarab avtomatik
+* text=auto

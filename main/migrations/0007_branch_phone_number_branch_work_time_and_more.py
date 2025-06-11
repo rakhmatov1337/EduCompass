@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("main", "0006_remove_branch_city_remove_branch_country_and_more"),
     ]

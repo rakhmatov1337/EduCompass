@@ -1,12 +1,10 @@
-from djoser.serializers import (
-    UserSerializer as BaseUserSerializer,
-    UserCreateSerializer as BaseUserCreateSerializer,
-)
-from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.core.validators import RegexValidator
-from api.serializers import EducationCenterSerializer
+from djoser.serializers import UserCreateSerializer as BaseUserCreateSerializer
+from djoser.serializers import UserSerializer as BaseUserSerializer
+from rest_framework import serializers
 
+from api.serializers import EducationCenterSerializer
 from main.models import Branch, EducationCenter, Enrollment
 
 User = get_user_model()

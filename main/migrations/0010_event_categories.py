@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("main", "0009_rename_time_event_start_time_remove_event_location_and_more"),
     ]

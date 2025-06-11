@@ -1,17 +1,7 @@
 from django.contrib import admin
 
-from .models import (
-    EduType,
-    Category,
-    Day,
-    Teacher,
-    EducationCenter,
-    Branch,
-    Course,
-    Level,
-    Event,
-    Enrollment,
-)
+from .models import (Branch, Category, Course, Day, EducationCenter, EduType,
+                     Enrollment, Event, Level, Teacher)
 
 # Register your models here.
 

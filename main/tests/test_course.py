@@ -1,9 +1,10 @@
 import pytest
+from django.contrib.auth import get_user_model
+from faker import Faker
 from rest_framework import status
 from rest_framework.test import APIClient
-from faker import Faker
-from main.models import Branch, Category, Level, Teacher, Day, EducationCenter
-from django.contrib.auth import get_user_model
+
+from main.models import Branch, Category, Day, EducationCenter, Level, Teacher
 
 faker = Faker()
 

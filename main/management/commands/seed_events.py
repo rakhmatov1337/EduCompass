@@ -1,12 +1,13 @@
-from django.core.management.base import BaseCommand
-from datetime import datetime, timedelta
-from faker import Faker
 import random
 import tempfile
-import requests
+from datetime import datetime, timedelta
 
-from main.models import Event, EducationCenter, Branch
+import requests
 from django.core.files import File
+from django.core.management.base import BaseCommand
+from faker import Faker
+
+from main.models import Branch, EducationCenter, Event
 
 
 class Command(BaseCommand):
@@ -61,6 +62,4 @@ class Command(BaseCommand):
 
             event.picture.save(f"{fake.slug()}.jpg", File(image_temp), save=True)
 
-        self.stdout.write(
-            self.style.SUCCESS("✅ 50 ta Event muvaffaqiyatli yaratildi.")
-        )
+        self.stdout.write(self.style.SUCCESS("✅ 50 ta Event muvaffaqiyatli yaratildi."))

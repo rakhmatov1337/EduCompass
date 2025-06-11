@@ -1,36 +1,19 @@
 # api/urls.py
 
-from djoser.views import UserViewSet
 from django.urls import path
+from djoser.views import UserViewSet
 from rest_framework_nested import routers
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenBlacklistView,
-)
-from accounts.views import RegisterView, MyCoursesView
+from rest_framework_simplejwt.views import (TokenBlacklistView,
+                                            TokenObtainPairView,
+                                            TokenRefreshView)
 
-from main.views import (
-    EduTypeViewSet,
-    CategoryViewSet,
-    LevelViewSet,
-    DayViewSet,
-    TeacherViewSet,
-    CourseViewSet,
-    CourseFilterSchemaView,
-    EventViewSet,
-    EventFilterSchemaView,
-    AppliedStudentViewSet,
-)
-from accounts.views import (
-    EduCenterViewSet,
-    BranchViewSet,
-    LikeViewSet,
-    ViewViewSet,
-    EduCenterCreateView,
-    CurrentUserRetrieveUpdateView,
-)
-
+from accounts.views import (BranchViewSet, CurrentUserRetrieveUpdateView,
+                            EduCenterCreateView, EduCenterViewSet, LikeViewSet,
+                            MyCoursesView, RegisterView, ViewViewSet)
+from main.views import (AppliedStudentViewSet, CategoryViewSet,
+                        CourseFilterSchemaView, CourseViewSet, DayViewSet,
+                        EduTypeViewSet, EventFilterSchemaView, EventViewSet,
+                        LevelViewSet, TeacherViewSet)
 
 router = routers.DefaultRouter()
 router.register("edu-types", EduTypeViewSet)
