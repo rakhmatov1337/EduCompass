@@ -31,7 +31,8 @@ class UserCreateSerializer(BaseUserCreateSerializer):
     def validate_phone_number(self, value):
         if User.objects.filter(phone_number=value).exists():
             raise serializers.ValidationError(
-                "Bu telefon raqam bilan ro‘yxatdan oʻtilgan foydalanuvchi allaqachon mavjud."
+                "Bu telefon raqam bilan ro‘yxatdan oʻtilgan foydalanuvchi "
+                "allaqachon mavjud."
             )
         return value
 
