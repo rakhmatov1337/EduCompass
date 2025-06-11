@@ -1,0 +1,33 @@
+name: CD
+
+# main ga push bo’lganda ishga tushadi
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Copy files to server
+        uses: easingthemes/ssh-deploy@v2.1.5
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+          remote-user:      ${{ secrets.SERVER_USER }}
+          server-ip:        ${{ secrets.SERVER_IP }}
+          local-path:       .
+          remote-path:      /root/app 
+
+      - name: Restart app on droplet
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+              cd /root/app
+              docker-compose down
+              docker-compose up -d --build
+            EOF
