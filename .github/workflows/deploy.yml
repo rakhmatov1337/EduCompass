@@ -8,7 +8,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    needs: build    # CI’dagi job’ingiz “build” deb nomlangan bo‘lsa
 
     steps:
       - name: Checkout code
