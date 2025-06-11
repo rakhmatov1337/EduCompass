@@ -26,4 +26,4 @@ jobs:
             source venv/bin/activate       
             pip install -r requirements.txt 
             python manage.py migrate        
-            sudo systemctl restart educompass 
+            sudo systemctl restart gunicorn 
