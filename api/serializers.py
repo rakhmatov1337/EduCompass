@@ -243,11 +243,12 @@ class CourseSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer
 
 
 class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
-    edu_center = serializers.SerializerMethodField(read_only=True)
+    edu_center_name = serializers.SerializerMethodField(read_only=True)
     edu_center_logo = serializers.SerializerMethodField(read_only=True)
     category_names = serializers.SerializerMethodField(read_only=True)
     phone_number = serializers.SerializerMethodField(read_only=True)
     telegram_link = serializers.SerializerMethodField(read_only=True)
+    branch_name = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Event
@@ -261,17 +262,16 @@ class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer)
             "price",
             "description",
             "link",
-            "branch",
+            "branch_name",
             'phone_number',
-            "edu_center",
+            "edu_center_name",
             "edu_center_logo",
-            "categories",
             "category_names",
             "is_archived",
             'telegram_link'
         ]
 
-    def get_edu_center(self, obj):
+    def get_edu_center_name(self, obj):
         return (
             obj.branch.edu_center.name if obj.branch and obj.branch.edu_center else None
         )
@@ -284,6 +284,11 @@ class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer)
     def get_telegram_link(self, obj):
         return (
             obj.branch.telegram_link if obj.branch and obj.branch.telegram_link else None
+        )
+
+    def get_branch_name(self, obj):
+        return (
+            obj.branch.name if obj.branch and obj.branch.name else None
         )
 
     def get_edu_center_logo(self, obj):
