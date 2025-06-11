@@ -13,20 +13,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Copy files to server
-        uses: easingthemes/ssh-deploy@v2.1.5
+      - name: Deploy via password-based SSH
+        uses: appleboy/ssh-action@v0.1.8
         with:
-          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
-          REMOTE_USER:     ${{ secrets.SERVER_USER }}
-          REMOTE_HOST:     ${{ secrets.SERVER_IP }}
-          SOURCE:          .
-          TARGET:          /root/app
-
-      - name: Restart app on droplet
-        run: |
-          ssh -o StrictHostKeyChecking=no \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
-              cd /root/app
-              docker-compose down
-              docker-compose up -d --build
-            EOF
+          host:     ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port:     22
+          script: |
+            cd /root/app
+            # misol: Docker Compose
+            docker-compose down
+            docker-compose up -d --build
