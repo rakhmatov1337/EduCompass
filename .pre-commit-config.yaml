@@ -1,0 +1,32 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 23.1.0    
+    hooks:
+      - id: black
+        language_version: python3.11
+
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        name: Sort Imports
+        language_version: python3.11
+
+  - repo: https://github.com/PyCQA/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        args: ["--max-line-length=88"]
+
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: python-check-blanket-noqa  
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-added-large-files
