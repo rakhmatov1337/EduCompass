@@ -280,6 +280,7 @@ class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer)
         return (
             obj.branch.phone_number if obj.branch and obj.branch.phone_number else None
         )
+
     def get_telegram_link(self, obj):
         return (
             obj.branch.telegram_link if obj.branch and obj.branch.telegram_link else None
