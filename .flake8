@@ -1,6 +1,5 @@
 [flake8]
 max-line-length = 88
-# don’t check these directories or files
 exclude =
   .git,
   __pycache__,
@@ -9,14 +8,13 @@ exclude =
   */venv/*,
   migrations,
   migrations/*,
-  env,           # in case you sometimes name it "env"
+  env
   .env,
   db.sqlite3
 
-# ignore these specific errors (e.g. to stay Black-compatible)
 extend-ignore =
-  E203,  # Black mosligi
-  W503,  # Black mosligi
-  E501,  # satr uzunligi
-  F401,  # keraksiz import
-  F811   
+  E203
+  W503
+  E501
+  F401
+  F811
