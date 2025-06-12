@@ -56,3 +56,4 @@ Pillow
 aiogram
 safety
 black
+coverage
