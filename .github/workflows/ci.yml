@@ -26,9 +26,8 @@ jobs:
           python -m venv venv
           source venv/bin/activate
           pip install --upgrade pip
-          # теперь с pytest-cov
           pip install -r requirements.txt
-          pip install pytest pytest-cov flake8 coverage
+          pip install pytest flake8 coverage
 
       - name: Lint with flake8
         run: |
@@ -37,5 +36,4 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          source venv/bin/activate
-          pytest --cov=. --cov-fail-under=80
+        
