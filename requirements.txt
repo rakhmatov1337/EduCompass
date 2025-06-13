@@ -57,3 +57,4 @@ aiogram
 safety
 black
 coverage
+django-quill-editor

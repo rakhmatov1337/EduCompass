@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "debug_toolbar",
     "corsheaders",
     "drf_yasg",
+    'django_quill',
     # local apps
     "accounts",
     "main",

@@ -1,3 +1,6 @@
+from django_quill.fields import QuillField  # assuming this import
+from django_quill.fields import QuillField
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
 from django.contrib.contenttypes.fields import (GenericForeignKey,
                                                 GenericRelation)
@@ -262,3 +265,148 @@ class Enrollment(models.Model):
 
     def __str__(self):
         return f"{self.user} → {self.course.name}"
+
+
+# Quiz model
+
+
+class QuizType(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = "Quiz Type"
+        verbose_name_plural = "Quiz Types"
+
+    def __str__(self):
+        return self.name
+
+
+class Unit(models.Model):
+    number = models.PositiveIntegerField(
+        unique=True,
+        help_text="Sequential number (e.g. 1,2,3…)"
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['number']
+        verbose_name = "Unit"
+        verbose_name_plural = "Units"
+
+    def __str__(self):
+        return f"Unit {self.number}: {self.title}"
+
+
+def get_last_unit():
+    last = Unit.objects.order_by('number').last()
+    return last.id if last else None
+
+
+class Quiz(models.Model):
+    unit = models.ForeignKey(
+        Unit,
+        on_delete=models.CASCADE,
+        related_name="quizzes",
+        blank=True,
+        null=True,
+        default=get_last_unit,
+    )
+    quiz_type = models.ForeignKey(QuizType, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    topic = models.CharField(max_length=70, blank=True)
+    description = QuillField(blank=True, null=True)
+    points = models.IntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    show_select = models.BooleanField(default=True)
+    audio = models.FileField(upload_to='audio/', blank=True, null=True)
+    image = models.ImageField(upload_to='quiz_pics/', blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = "Quizzes"
+        ordering = ['unit__number', 'quiz_type__name', 'name']
+        unique_together = (('unit', 'name'),)
+
+    def __str__(self):
+        unit_num = self.unit.number if self.unit else "?"
+        return f"{self.name} (Unit {unit_num})"
+
+    @property
+    def questions(self):
+        return self.questions.all()    # now matches related_name
+
+
+def get_last_quiz():
+    last = Quiz.objects.order_by('pk').last()
+    return last.pk if last else None
+
+
+class Question(models.Model):
+    quiz = models.ForeignKey(
+        Quiz,
+        on_delete=models.CASCADE,
+        related_name="questions",
+        default=get_last_quiz,
+        blank=True,
+        null=True,
+    )
+    position = models.PositiveIntegerField(
+        default=1,
+        help_text="Ordering within the quiz."
+    )
+    text = models.TextField()
+    end_text = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['quiz__id', 'position']
+        unique_together = (('quiz', 'text'),)
+
+        def __str__(self):
+            preview = (self.text[:50] + '…') if len(self.text) > 50 else self.text
+            correct = self.correct_answer
+            correct_text = correct.text if correct else "No correct answer"
+            return f"{preview} — {correct_text}"
+
+    @property
+    def correct_answer(self):
+        return self.answer_set.filter(correct=True).first()
+
+
+class Answer(models.Model):
+    question = models.ForeignKey(
+        'Question',
+        on_delete=models.CASCADE,
+        related_name='answers',
+        help_text="The question this answer belongs to."
+    )
+    text = models.TextField(
+        help_text="The answer text shown to the user."
+    )
+    correct = models.BooleanField(
+        default=False,
+        help_text="Marks whether this answer is the correct one."
+    )
+    position = models.PositiveIntegerField(
+        default=1,
+        help_text="Order of this answer among its siblings."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['question__id', 'position']
+        unique_together = (('question', 'text'),)
+        verbose_name = "Answer"
+        verbose_name_plural = "Answers"
+
+    def __str__(self):
+        prefix = "✔" if self.correct else "✘"
+        preview = (self.text[:50] + '…') if len(self.text) > 50 else self.text
+        return f"{prefix} {preview}"
