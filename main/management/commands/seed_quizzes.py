@@ -22,11 +22,6 @@ class Command(BaseCommand):
             defaults={'description': 'Select the single best answer.'}
         )
 
-        # 3. Prepare a valid Quill delta for the description
-        quill_delta = json.dumps([
-            {"insert": "50 multiple-choice questions for absolute beginners.\n"}
-        ])
-
         # 4. Create (or retrieve) the Quiz
         quiz, created = Quiz.objects.get_or_create(
             unit=unit,
@@ -34,7 +29,6 @@ class Command(BaseCommand):
             name='Beginners English Quiz (50 Questions)',
             defaults={
                 'topic': 'Mixed Basics',
-                'description': quill_delta,
                 'points': 50,
                 'show_select': True
             }
