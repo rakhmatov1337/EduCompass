@@ -3,6 +3,7 @@ from django.db.models import Q
 from django_filters.rest_framework import FilterSet, filters
 
 from main.models import Course, Day, Event
+from quiz.models import Quiz
 
 
 class DayNameInFilter(filters.BaseInFilter, filters.CharFilter):
@@ -64,3 +65,13 @@ class EventFilter(django_filters.FilterSet):
     class Meta:
         model = Event
         fields = ["start_date", "end_date", "edu_center_id", "category"]
+
+
+class QuizFilter(django_filters.FilterSet):
+    level_name = django_filters.CharFilter(
+        field_name="level__name", lookup_expr="iexact"
+    )
+
+    class Meta:
+        model = Quiz
+        fields = ["level", "level_name", "type"]

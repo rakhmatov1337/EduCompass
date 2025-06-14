@@ -340,7 +340,7 @@ class Quiz(models.Model):
 
     @property
     def questions(self):
-        return self.questions.all()    # now matches related_name
+        return self.questions.all()  
 
 
 def get_last_quiz():

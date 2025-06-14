@@ -13,6 +13,7 @@ from accounts import urls as accounts_urls
 from api import urls as api_urls
 from dashboard import urls as dashboard_urls
 from main import urls as main_urls
+from quiz import urls as quiz_urls
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -32,6 +33,7 @@ urlpatterns = [
     path("api/", include(api_urls)),
     path("accounts/", include(accounts_urls)),
     path("dashboard/", include(dashboard_urls)),
+    path("quiz/", include(quiz_urls)),
     path("swagger.json", schema_view.without_ui(cache_timeout=0), name="schema-json"),
     path(
         "swagger/",

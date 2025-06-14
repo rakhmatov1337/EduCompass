@@ -14,6 +14,10 @@ from main.views import (AppliedStudentViewSet, CategoryViewSet,
                         CourseFilterSchemaView, CourseViewSet, DayViewSet,
                         EduTypeViewSet, EventFilterSchemaView, EventViewSet,
                         LevelViewSet, TeacherViewSet)
+from quiz.views import (
+    QuizViewSet, QuestionViewSet, AnswerViewSet,
+    UserQuizResultViewSet, UserLevelProgressViewSet, QuizFilterSchemaView
+)
 
 router = routers.DefaultRouter()
 router.register("edu-types", EduTypeViewSet)
@@ -26,6 +30,14 @@ router.register("courses", CourseViewSet, basename="courses")
 router.register("edu-centers", EduCenterViewSet, basename="edu-centers")
 router.register("events", EventViewSet, basename="event")
 router.register("applied-students", AppliedStudentViewSet, basename="applied-students")
+
+# quiz routers
+
+router.register(r'quizzes', QuizViewSet, basename='quiz')
+router.register(r'questions', QuestionViewSet, basename='question')
+router.register(r'answers', AnswerViewSet, basename='answer')
+router.register(r'results', UserQuizResultViewSet, basename='results')
+router.register(r'progress', UserLevelProgressViewSet, basename='progress')
 
 edu_center_router = routers.NestedDefaultRouter(
     router, r"edu-centers", lookup="edu_center"
@@ -51,6 +63,7 @@ urlpatterns = (
             EventFilterSchemaView.as_view(),
             name="event-filter-schema",
         ),
+        path('quizzes/filters/', QuizFilterSchemaView.as_view(), name='quiz-filter-schema'),
         path("auth/login/", TokenObtainPairView.as_view(), name="auth_login"),
         path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
         path("auth/logout/", TokenBlacklistView.as_view(), name="auth_logout"),
