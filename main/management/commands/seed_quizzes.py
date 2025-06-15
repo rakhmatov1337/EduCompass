@@ -1,5 +1,3 @@
-# apps/quiz/management/commands/seed_english_mcq.py
-
 import json
 from django.core.management.base import BaseCommand
 from django.db import transaction
