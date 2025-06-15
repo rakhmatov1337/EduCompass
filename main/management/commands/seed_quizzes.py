@@ -17,13 +17,6 @@ class Command(BaseCommand):
         Quiz.objects.filter(name=quiz_name, type=Quiz.QuizType.MULTIPLE_CHOICE).delete()
         self.stdout.write(
             "Oldingi English Test for Beginners o‘chirildi (agar mavjud edi).")
-
-        # 3. Quiz yaratish
-        description_delta = json.dumps({
-            "ops": [
-                {"insert": "Beginner level English test: multiple choice questions.\n"}
-            ]
-        })
         quiz = Quiz.objects.create(
             name=quiz_name,
             description="",
