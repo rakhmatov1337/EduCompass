@@ -13,17 +13,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Deploy via password-based SSH
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v0.1.8
         with:
           host:     ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
+          username: ${{ secrets.SERVER_USER }} 
+          # key: ${{ secrets.SERVER_SSH_KEY }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port:     22
           script: |
+            set -e
             cd /opt/EduCompass
             git pull origin main
             source venv/bin/activate
-            pip install -r requirements.txt
+            pip install --upgrade pip setuptools wheel
+            pip install --no-cache-dir -r requirements.txt
             python manage.py migrate
-            sudo systemctl restart gunicorn
+            sudo supervisorctl restart educompass
