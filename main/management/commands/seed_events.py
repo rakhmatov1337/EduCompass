@@ -43,9 +43,9 @@ class Command(BaseCommand):
             image_temp.write(response.content)
             image_temp.flush()
 
-            # Random payed/free
-            requirement = random.choice(["payed", "free"])
-            price = random.randint(10000, 100000) if requirement == "payed" else None
+            # Random paid/free
+            requirement = random.choice(["paid", "free"])
+            price = random.randint(10000, 100000) if requirement == "paid" else None
 
             event = Event(
                 name=fake.sentence(nb_words=3),

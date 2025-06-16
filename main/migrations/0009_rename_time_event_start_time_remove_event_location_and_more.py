@@ -41,7 +41,7 @@ class Migration(migrations.Migration):
             model_name="event",
             name="requirements",
             field=models.CharField(
-                choices=[("FREE", "Bepul"), ("PAYED", "Pullik")],
+                choices=[("FREE", "Bepul"), ("PAID", "Pullik")],
                 default=1,
                 max_length=10,
             ),

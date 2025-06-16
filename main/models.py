@@ -174,7 +174,7 @@ class Branch(models.Model):
 class Event(models.Model):
     REQUIREMENT_CHOICES = [
         ("FREE", "Bepul"),
-        ("PAYED", "Pullik"),
+        ("PAID", "Pullik"),
     ]
 
     name = models.CharField(max_length=255)
