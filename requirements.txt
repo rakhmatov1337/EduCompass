@@ -58,3 +58,4 @@ safety
 black
 coverage
 django-quill-editor
+faker
