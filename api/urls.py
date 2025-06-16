@@ -10,10 +10,19 @@ from rest_framework_simplejwt.views import (TokenBlacklistView,
 from accounts.views import (BranchViewSet, CurrentUserRetrieveUpdateView,
                             EduCenterCreateView, EduCenterViewSet, LikeViewSet,
                             MyCoursesView, RegisterView, ViewViewSet)
-from main.views import (AppliedStudentViewSet, CategoryViewSet,
-                        CourseFilterSchemaView, CourseViewSet, DayViewSet,
-                        EduTypeViewSet, EventFilterSchemaView, EventViewSet,
-                        LevelViewSet, TeacherViewSet)
+from main.views import (
+    AppliedStudentViewSet,
+    CategoryViewSet,
+    CourseFilterSchemaView,
+    CourseViewSet,
+    DayViewSet,
+    EduTypeViewSet,
+    EnrollmentReportView,
+    EventFilterSchemaView,
+    EventViewSet,
+    LevelViewSet,
+    TeacherViewSet,
+)
 from quiz.views import (
     QuizViewSet, QuestionViewSet, AnswerViewSet,
     UserQuizResultViewSet, UserLevelProgressViewSet, QuizFilterSchemaView
@@ -62,6 +71,11 @@ urlpatterns = (
             "events/filters/",
             EventFilterSchemaView.as_view(),
             name="event-filter-schema",
+        ),
+        path(
+            "reports/enrollments/",
+            EnrollmentReportView.as_view(),
+            name="enrollment-report",
         ),
         path('quizzes/filters/', QuizFilterSchemaView.as_view(), name='quiz-filter-schema'),
         path("auth/login/", TokenObtainPairView.as_view(), name="auth_login"),

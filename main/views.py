@@ -1,5 +1,7 @@
 from django.db.models import F
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from datetime import timedelta
 from django.utils.decorators import method_decorator
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
@@ -362,6 +364,31 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
         elif user.role == "BRANCH":
             return qs.filter(course__branch__admins=user)
         return qs.none()
+
+
+class EnrollmentReportView(APIView):
+    """Return weekly, monthly and yearly enrollment counts."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self, user):
+        if user.role == "EDU_CENTER":
+            return Enrollment.objects.filter(course__branch__edu_center__user=user)
+        if user.role == "BRANCH":
+            return Enrollment.objects.filter(course__branch__admins=user)
+        return Enrollment.objects.none()
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        if user.role not in ["EDU_CENTER", "BRANCH"]:
+            raise PermissionDenied()
+
+        qs = self.get_queryset(user)
+        now = timezone.now()
+        weekly = qs.filter(applied_at__gte=now - timedelta(days=7)).count()
+        monthly = qs.filter(applied_at__gte=now - timedelta(days=30)).count()
+        yearly = qs.filter(applied_at__gte=now - timedelta(days=365)).count()
+        return Response({"weekly": weekly, "monthly": monthly, "yearly": yearly})
 
 
 # Quiz viewsets
