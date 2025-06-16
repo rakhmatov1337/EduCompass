@@ -12,6 +12,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      CI: true
+      DEBUG: true
+      SECRET_KEY: test-secret-key
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -36,4 +41,6 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-        
+          source venv/bin/activate
+          coverage run -m pytest
+          coverage report
