@@ -339,8 +339,9 @@ class Quiz(models.Model):
         return f"{self.name} (Unit {unit_num})"
 
     @property
-    def questions(self):
-        return self.questions.all()  
+    def question_list(self):
+        """Return all questions related to this quiz."""
+        return self.questions.all()
 
 
 def get_last_quiz():
