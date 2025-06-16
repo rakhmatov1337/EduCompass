@@ -1,4 +1,6 @@
 -r requirements.txt
 pytest
+pytest-django
+faker
 flake8
 coverage
