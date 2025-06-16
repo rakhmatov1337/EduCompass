@@ -35,9 +35,6 @@ class TestCreateCourse:
         branch = Branch.objects.create(
             name=faker.company(),
             edu_center=edu_center,
-            country="Uzbekistan",
-            region="Tashkent",
-            city="Tashkent",
         )
 
         category = Category.objects.create(name=faker.word())
