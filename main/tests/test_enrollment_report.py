@@ -45,6 +45,7 @@ def test_enrollment_report_counts():
 
     branch = Branch.objects.create(name="B1", edu_center=center)
     teacher = Teacher.objects.create(name="T1", gender="MALE", branch=branch)
+
     def make_course(name_suffix):
         c = Course.objects.create(
             name=f"Course{name_suffix}",
@@ -73,4 +74,3 @@ def test_enrollment_report_counts():
     assert data["weekly"] == 1
     assert data["monthly"] == 2
     assert data["yearly"] == 3
-
