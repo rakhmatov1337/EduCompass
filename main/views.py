@@ -1,4 +1,6 @@
+from datetime import timedelta
 from django.db.models import F
+from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django_filters.rest_framework import DjangoFilterBackend
@@ -20,7 +22,8 @@ from api.serializers import (AppliedStudentSerializer, CategorySerializer,
                              CourseSerializer, DaySerializer,
                              EduTypeSerializer, EventSerializer,
                              LevelSerializer, TeacherSerializer, UnitSerializer, QuizTypeSerializer,
-                             QuizSerializer, QuestionSerializer, AnswerSerializer, QuizSubmitSerializer, QuestionDetailSerializer, SingleAnswerSubmissionSerializer)
+                             QuizSerializer, QuestionSerializer, AnswerSerializer, QuizSubmitSerializer, QuestionDetailSerializer, SingleAnswerSubmissionSerializer,
+                             CancelEnrollmentSerializer)
 from main.models import (Category, Course, Day, EduType, Enrollment, Event,
                          Level, Teacher, Unit, QuizType, Quiz, Question, Answer)
 
@@ -233,8 +236,6 @@ class CourseViewSet(viewsets.ModelViewSet):
                 {"detail": "Already applied."}, status=status.HTTP_400_BAD_REQUEST
             )
         Enrollment.objects.create(user=user, course=course)
-        course.booked_places = F("booked_places") + 1
-        course.save(update_fields=["booked_places"])
         return Response(
             {
                 "detail": "Applied successfully.",
@@ -348,14 +349,18 @@ class EventFilterSchemaView(APIView):
 
 
 class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only list of enrollments visible to the current user,
+    plus /stats/, /{pk}/confirm/ and /{pk}/cancel/ endpoints.
+    """
     serializer_class = AppliedStudentSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = DefaultPagination
 
-    filter_backends = [DjangoFilterBackend,
-                       SearchFilter, OrderingFilter]
+    filter_backends = [
+        DjangoFilterBackend,SearchFilter,OrderingFilter,
+    ]
     filterset_fields = ["status", "course", "course__branch"]
-
     search_fields = ["user__full_name", "user__phone_number"]
     ordering_fields = ["applied_at", "user__full_name"]
     ordering = ["-applied_at"]
@@ -368,15 +373,119 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
             "course__branch",
             "course__branch__edu_center"
         )
-
         if user.role == Enrollment.Status.PENDING:
             return qs.filter(status=Enrollment.Status.PENDING)
-
         if user.role == "EDU_CENTER":
             return qs.filter(course__branch__edu_center__user=user)
-        elif user.role == "BRANCH":
+        if user.role == "BRANCH":
             return qs.filter(course__branch__admins=user)
         return qs.none()
+
+    @action(detail=False, methods=["get"], url_path="stats")
+    def stats(self, request):
+        """
+        GET /api/applied-students/stats/
+        Returns total/pending/confirmed/canceled counts + 30-day trend.
+        """
+        qs = self.get_queryset()
+        now = timezone.now()
+        start_curr = now - timedelta(days=30)
+        start_prev = now - timedelta(days=60)
+
+        total = qs.count()
+        pending = qs.filter(status=Enrollment.Status.PENDING).count()
+        confirmed = qs.filter(status=Enrollment.Status.CONFIRMED).count()
+        canceled = qs.filter(status=Enrollment.Status.CANCELED).count()
+
+        past_30 = qs.filter(applied_at__gte=start_curr).count()
+        prev_30 = qs.filter(
+            applied_at__gte=start_prev,
+            applied_at__lt=start_curr
+        ).count()
+
+        pct = None
+        if prev_30:
+            pct = round((past_30 - prev_30) / prev_30 * 100, 1)
+
+        return Response({
+            "total":     total,
+            "pending":   pending,
+            "confirmed": confirmed,
+            "canceled":  canceled,
+            "trend": {
+                "past_30_days": past_30,
+                "prev_30_days": prev_30,
+                "pct_change":   pct
+            }
+        }, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="confirm",
+        permission_classes=[IsAuthenticated],
+        serializer_class=AppliedStudentSerializer
+    )
+    def confirm(self, request, pk=None):
+        """
+        POST /api/applied-students/{pk}/confirm/
+        Only valid for PENDING enrollments.
+        Moves to CONFIRMED and updates course counts.
+        """
+        enrollment = self.get_object()
+        if enrollment.status != Enrollment.Status.PENDING:
+            return Response(
+                {"detail": "Only pending enrollments can be confirmed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Update course capacity
+        course = enrollment.course
+        course.booked_places = F("booked_places") + 1
+        course.total_places = F("total_places") - 1
+        course.save(update_fields=["booked_places", "total_places"])
+
+        enrollment.status = Enrollment.Status.CONFIRMED
+        enrollment.save(update_fields=["status"])
+
+        return Response(
+            AppliedStudentSerializer(enrollment, context={"request": request}).data,
+            status=status.HTTP_200_OK
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="cancel",
+        permission_classes=[IsAuthenticated],
+        serializer_class=CancelEnrollmentSerializer
+    )
+    def cancel(self, request, pk=None):
+        """
+        POST /api/applied-students/{pk}/cancel/
+        Body: { "reason": "some text" }
+        If previously CONFIRMED, reverts course counts,
+        then marks enrollment as CANCELED.
+        """
+        enrollment = self.get_object()
+        ser = CancelEnrollmentSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+
+        # If already confirmed, revert course counts
+        if enrollment.status == Enrollment.Status.CONFIRMED:
+            course = enrollment.course
+            course.booked_places = F("booked_places") - 1
+            course.total_places = F("total_places") + 1
+            course.save(update_fields=["booked_places", "total_places"])
+
+        enrollment.status = Enrollment.Status.CANCELED
+        enrollment.cancelled_reason = ser.validated_data["reason"]
+        enrollment.save(update_fields=["status", "cancelled_reason"])
+
+        return Response(
+            AppliedStudentSerializer(enrollment, context={"request": request}).data,
+            status=status.HTTP_200_OK
+        )
 
 
 # Quiz viewsets
@@ -423,15 +532,12 @@ class QuizViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['post'],
         permission_classes=[IsAuthenticated],
-        serializer_class=QuizSubmitSerializer,  # ← bu yerga qo‘shildi
+        serializer_class=QuizSubmitSerializer,  
     )
     def submit(self, request, pk=None):
-        # serializerni tekshirish
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         answers = serializer.validated_data['answers']
-
-        # siz oldingi loģikani shu yerda ishlatasiz…
         quiz = self.get_object()
         total = quiz.questions.count()
         correct = 0
@@ -466,7 +572,6 @@ class QuestionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsSuperUserOrReadOnly]
 
     def get_serializer_class(self):
-        # Use the detailed serializer (with nested answers) on retrieve
         if self.action == 'retrieve':
             return QuestionDetailSerializer
         return super().get_serializer_class()
@@ -504,5 +609,3 @@ class AnswerViewSet(viewsets.ModelViewSet):
     serializer_class = AnswerSerializer
     permission_classes = [IsSuperUserOrReadOnly]
 
-
-# Course applied(total), Confirmed, Pending, Canceled

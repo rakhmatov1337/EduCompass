@@ -355,25 +355,45 @@ class EventDashboardSerializer(serializers.ModelSerializer):
 
 class AppliedStudentSerializer(serializers.ModelSerializer):
     user_full_name = serializers.CharField(
-        source="user.full_name",       read_only=True)
-    user_phone = serializers.CharField(source="user.phone_number",    read_only=True)
-    course_name = serializers.CharField(source="course.name",          read_only=True)
-
-    course_id = serializers.IntegerField(source="course.id",         read_only=True)
-    status = serializers.ChoiceField(choices=Enrollment.Status.choices, read_only=True)
+        source="user.full_name", read_only=True
+    )
+    user_phone = serializers.CharField(
+        source="user.phone_number", read_only=True
+    )
+    course_id = serializers.IntegerField(
+        source="course.id", read_only=True
+    )
+    course_name = serializers.CharField(
+        source="course.name", read_only=True
+    )
+    status = serializers.CharField(read_only=True
+                                   )
     cancelled_reason = serializers.CharField(
-        allow_blank=True, allow_null=True, read_only=True)
+        allow_blank=True,
+        allow_null=True,
+        read_only=True
+    )
 
     class Meta:
         model = Enrollment
         fields = [
             "id",
-            "user_full_name", "user_phone",
-            "course_id", "course_name",
+            "user_full_name",
+            "user_phone",
+            "course_id",
+            "course_name",
             "applied_at",
-            "status", "cancelled_reason",
+            "status",
+            "cancelled_reason",
         ]
+        read_only_fields = fields
 
+
+class CancelEnrollmentSerializer(serializers.Serializer):
+    reason = serializers.CharField(
+        help_text="Причина отмены",
+        allow_blank=False,
+    )
 
 
 class UnitSerializer(serializers.ModelSerializer):
