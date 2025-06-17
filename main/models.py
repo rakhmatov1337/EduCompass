@@ -251,20 +251,39 @@ class Banner(models.Model):
 
 
 class Enrollment(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "PENDING",   "Pending"
+        CONFIRMED = "CONFIRMED", "Confirmed"
+        CANCELED = "CANCELED",  "Canceled"
+
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="enrollments"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="enrollments"
     )
     course = models.ForeignKey(
-        "main.Course", on_delete=models.CASCADE, related_name="enrollments"
+        "main.Course",
+        on_delete=models.CASCADE,
+        related_name="enrollments"
     )
     applied_at = models.DateTimeField(default=timezone.now)
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.PENDING
+    )
+    cancelled_reason = models.TextField(
+        blank=True,
+        null=True,
+        help_text="If status=CANCELED, give a reason"
+    )
 
     class Meta:
         unique_together = ("user", "course")
         ordering = ["-applied_at"]
 
     def __str__(self):
-        return f"{self.user} → {self.course.name}"
+        return f"{self.user} → {self.course.name} ({self.status})"
 
 
 # Quiz model

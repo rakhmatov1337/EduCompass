@@ -350,12 +350,27 @@ class EventFilterSchemaView(APIView):
 class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AppliedStudentSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = DefaultPagination
+
+    filter_backends = [DjangoFilterBackend,
+                       SearchFilter, OrderingFilter]
+    filterset_fields = ["status", "course", "course__branch"]
+
+    search_fields = ["user__full_name", "user__phone_number"]
+    ordering_fields = ["applied_at", "user__full_name"]
+    ordering = ["-applied_at"]
 
     def get_queryset(self):
         user = self.request.user
         qs = Enrollment.objects.select_related(
-            "user", "course", "course__branch", "course__branch__edu_center"
+            "user",
+            "course",
+            "course__branch",
+            "course__branch__edu_center"
         )
+
+        if user.role == Enrollment.Status.PENDING:
+            return qs.filter(status=Enrollment.Status.PENDING)
 
         if user.role == "EDU_CENTER":
             return qs.filter(course__branch__edu_center__user=user)
@@ -488,3 +503,6 @@ class AnswerViewSet(viewsets.ModelViewSet):
     queryset = Answer.objects.select_related('question')
     serializer_class = AnswerSerializer
     permission_classes = [IsSuperUserOrReadOnly]
+
+
+# Course applied(total), Confirmed, Pending, Canceled
