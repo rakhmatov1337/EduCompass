@@ -20,4 +20,6 @@ extend-ignore =
   F811
   E722
   W291
-  E201 
+  E201
+  E231
+  W391 
