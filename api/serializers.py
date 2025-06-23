@@ -368,7 +368,7 @@ class AppliedStudentSerializer(serializers.ModelSerializer):
     )
     status = serializers.CharField(read_only=True
                                    )
-    cancellation_reason = serializers.CharField(
+    reason = serializers.CharField(
         allow_blank=True,
         allow_null=True,
         read_only=True
@@ -385,7 +385,7 @@ class AppliedStudentSerializer(serializers.ModelSerializer):
             "course_name",
             "applied_at",
             "status",
-            "cancellation_reason",
+            "reason",
             "branch_name",
         ]
         read_only_fields = fields
