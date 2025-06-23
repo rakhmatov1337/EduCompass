@@ -388,6 +388,9 @@ class AppliedStudentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    def get_branch_name(self, obj):
+        return obj.course.branch.name if obj.course.branch and obj.course.branch.name else None
+
 
 class CancelEnrollmentSerializer(serializers.Serializer):
     reason = serializers.CharField(
