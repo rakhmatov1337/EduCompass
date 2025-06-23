@@ -361,6 +361,7 @@ class StatItemSerializer(serializers.Serializer):
 
 
 class EnrollmentStatusStatsSerializer(serializers.Serializer):
+    total     = StatItemSerializer()
     confirmed = StatItemSerializer()
     pending = StatItemSerializer()
     canceled = StatItemSerializer()

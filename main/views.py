@@ -393,20 +393,15 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
         serializer_class=EnrollmentStatusStatsSerializer
     )
     def stats(self, request):
-        """
-        GET /api/applied-students/stats/
-        Returns confirmed/pending/canceled breakdown with 30-day trend.
-        """
         qs = self.get_queryset()
         now = timezone.now()
         t0 = now - timedelta(days=30)
         t1 = now - timedelta(days=60)
 
-        def compute(status):
-            sub = qs.filter(status=status)
-            cnt = sub.count()
-            past = sub.filter(applied_at__gte=t0).count()
-            prev = sub.filter(applied_at__gte=t1, applied_at__lt=t0).count()
+        def compute(sub_qs):
+            cnt = sub_qs.count()
+            past = sub_qs.filter(applied_at__gte=t0).count()
+            prev = sub_qs.filter(applied_at__gte=t1, applied_at__lt=t0).count()
             pct = round((past - prev) / prev * 100, 1) if prev else None
             return {
                 "count":        cnt,
@@ -416,9 +411,10 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
             }
 
         data = {
-            "confirmed": compute(Enrollment.Status.CONFIRMED),
-            "pending":   compute(Enrollment.Status.PENDING),
-            "canceled":  compute(Enrollment.Status.CANCELED),
+            "total":     compute(qs),
+            "confirmed": compute(qs.filter(status=Enrollment.Status.CONFIRMED)),
+            "pending":   compute(qs.filter(status=Enrollment.Status.PENDING)),
+            "canceled":  compute(qs.filter(status=Enrollment.Status.CANCELED)),
         }
 
         ser = self.get_serializer(data=data)
@@ -439,13 +435,10 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
         and clears any previous cancellation reason.
         """
         enrollment = self.get_object()
-        # bump course counts
         course = enrollment.course
         course.booked_places = F("booked_places") + 1
         course.total_places = F("total_places") - 1
         course.save(update_fields=["booked_places", "total_places"])
-
-        # set status and clear any cancelled_reason
         enrollment.status = Enrollment.Status.CONFIRMED
         enrollment.cancelled_reason = ""
         enrollment.save(update_fields=["status", "cancelled_reason"])
@@ -528,7 +521,7 @@ class QuizViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['post'],
         permission_classes=[IsAuthenticated],
-        serializer_class=QuizSubmitSerializer,  
+        serializer_class=QuizSubmitSerializer,
     )
     def submit(self, request, pk=None):
         serializer = self.get_serializer(data=request.data)
@@ -604,4 +597,3 @@ class AnswerViewSet(viewsets.ModelViewSet):
     queryset = Answer.objects.select_related('question')
     serializer_class = AnswerSerializer
     permission_classes = [IsSuperUserOrReadOnly]
-
