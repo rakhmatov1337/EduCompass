@@ -352,7 +352,7 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Read-only list of enrollments visible to the current user,
     plus:
-      - GET  /api/applied-students/stats/    overall & 30-day status breakdown
+      - GET  /api/applied-students/stats/
       - POST /api/applied-students/{pk}/confirm/
       - POST /api/applied-students/{pk}/cancel/
     """
@@ -395,12 +395,7 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
     def stats(self, request):
         """
         GET /api/applied-students/stats/
-        Returns a breakdown for confirmed/pending/canceled:
-        {
-          confirmed: { count, past_30_days, prev_30_days, pct_change },
-          pending:   { … },
-          canceled:  { … }
-        }
+        Returns confirmed/pending/canceled breakdown with 30-day trend.
         """
         qs = self.get_queryset()
         now = timezone.now()
@@ -440,18 +435,20 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
     def confirm(self, request, pk=None):
         """
         POST /api/applied-students/{pk}/confirm/
-        Only pending enrollments can be confirmed. Updates course counts.
+        Only pending enrollments can be confirmed. Updates course counts
+        and clears any previous cancellation reason.
         """
         enrollment = self.get_object()
-
         # bump course counts
         course = enrollment.course
         course.booked_places = F("booked_places") + 1
         course.total_places = F("total_places") - 1
         course.save(update_fields=["booked_places", "total_places"])
 
+        # set status and clear any cancelled_reason
         enrollment.status = Enrollment.Status.CONFIRMED
-        enrollment.save(update_fields=["status"])
+        enrollment.cancelled_reason = ""
+        enrollment.save(update_fields=["status", "cancelled_reason"])
 
         out = AppliedStudentSerializer(enrollment, context={"request": request})
         return Response(out.data, status=status.HTTP_200_OK)

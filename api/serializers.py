@@ -401,9 +401,6 @@ class AppliedStudentSerializer(serializers.ModelSerializer):
 
 
 class CancelEnrollmentSerializer(serializers.Serializer):
-    """
-    Used by POST /api/applied-students/{pk}/cancel/
-    """
     reason = serializers.CharField(
         help_text="Reason for cancellation",
         allow_blank=False
