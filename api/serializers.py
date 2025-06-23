@@ -373,6 +373,7 @@ class AppliedStudentSerializer(serializers.ModelSerializer):
         allow_null=True,
         read_only=True
     )
+    branch_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Enrollment
@@ -385,6 +386,7 @@ class AppliedStudentSerializer(serializers.ModelSerializer):
             "applied_at",
             "status",
             "cancellation_reason",
+            "branch_name",
         ]
         read_only_fields = fields
 
