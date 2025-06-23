@@ -353,25 +353,30 @@ class EventDashboardSerializer(serializers.ModelSerializer):
         ]
 
 
+class StatItemSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    past_30_days = serializers.IntegerField()
+    prev_30_days = serializers.IntegerField()
+    pct_change = serializers.FloatField(allow_null=True)
+
+
+class EnrollmentStatusStatsSerializer(serializers.Serializer):
+    confirmed = StatItemSerializer()
+    pending = StatItemSerializer()
+    canceled = StatItemSerializer()
+
+
 class AppliedStudentSerializer(serializers.ModelSerializer):
-    full_name = serializers.CharField(
-        source="user.full_name", read_only=True
-    )
-    phone_number = serializers.CharField(
-        source="user.phone_number", read_only=True
-    )
-    course_id = serializers.IntegerField(
-        source="course.id", read_only=True
-    )
-    course_name = serializers.CharField(
-        source="course.name", read_only=True
-    )
-    status = serializers.CharField(read_only=True
-                                   )
+    full_name = serializers.CharField(source="user.full_name",       read_only=True)
+    phone_number = serializers.CharField(source="user.phone_number",    read_only=True)
+    course_id = serializers.IntegerField(source="course.id",         read_only=True)
+    course_name = serializers.CharField(source="course.name",          read_only=True)
+    status = serializers.CharField(read_only=True)
     reason = serializers.CharField(
+        source="cancelled_reason",
+        read_only=True,
         allow_blank=True,
-        allow_null=True,
-        read_only=True
+        allow_null=True
     )
     branch_name = serializers.SerializerMethodField()
 
@@ -391,13 +396,17 @@ class AppliedStudentSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_branch_name(self, obj):
-        return obj.course.branch.name if obj.course.branch and obj.course.branch.name else None
+        branch = obj.course.branch
+        return branch.name if branch else None
 
 
 class CancelEnrollmentSerializer(serializers.Serializer):
+    """
+    Used by POST /api/applied-students/{pk}/cancel/
+    """
     reason = serializers.CharField(
-        help_text="Причина отмены",
-        allow_blank=False,
+        help_text="Reason for cancellation",
+        allow_blank=False
     )
 
 

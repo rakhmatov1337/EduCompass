@@ -23,7 +23,7 @@ from api.serializers import (AppliedStudentSerializer, CategorySerializer,
                              EduTypeSerializer, EventSerializer,
                              LevelSerializer, TeacherSerializer, UnitSerializer, QuizTypeSerializer,
                              QuizSerializer, QuestionSerializer, AnswerSerializer, QuizSubmitSerializer, QuestionDetailSerializer, SingleAnswerSubmissionSerializer,
-                             CancelEnrollmentSerializer)
+                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer)
 from main.models import (Category, Course, Day, EduType, Enrollment, Event,
                          Level, Teacher, Unit, QuizType, Quiz, Question, Answer)
 
@@ -351,14 +351,19 @@ class EventFilterSchemaView(APIView):
 class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Read-only list of enrollments visible to the current user,
-    plus /stats/, /{pk}/confirm/ and /{pk}/cancel/ endpoints.
+    plus:
+      - GET  /api/applied-students/stats/    overall & 30-day status breakdown
+      - POST /api/applied-students/{pk}/confirm/
+      - POST /api/applied-students/{pk}/cancel/
     """
     serializer_class = AppliedStudentSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = DefaultPagination
 
     filter_backends = [
-        DjangoFilterBackend,SearchFilter,OrderingFilter,
+        DjangoFilterBackend,
+        SearchFilter,
+        OrderingFilter,
     ]
     filterset_fields = ["status", "course", "course__branch"]
     search_fields = ["user__full_name", "user__phone_number"]
@@ -381,43 +386,49 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
             return qs.filter(course__branch__admins=user)
         return qs.none()
 
-    @action(detail=False, methods=["get"], url_path="stats")
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="stats",
+        serializer_class=EnrollmentStatusStatsSerializer
+    )
     def stats(self, request):
         """
         GET /api/applied-students/stats/
-        Returns total/pending/confirmed/canceled counts + 30-day trend.
+        Returns a breakdown for confirmed/pending/canceled:
+        {
+          confirmed: { count, past_30_days, prev_30_days, pct_change },
+          pending:   { … },
+          canceled:  { … }
+        }
         """
         qs = self.get_queryset()
         now = timezone.now()
-        start_curr = now - timedelta(days=30)
-        start_prev = now - timedelta(days=60)
+        t0 = now - timedelta(days=30)
+        t1 = now - timedelta(days=60)
 
-        total = qs.count()
-        pending = qs.filter(status=Enrollment.Status.PENDING).count()
-        confirmed = qs.filter(status=Enrollment.Status.CONFIRMED).count()
-        canceled = qs.filter(status=Enrollment.Status.CANCELED).count()
-
-        past_30 = qs.filter(applied_at__gte=start_curr).count()
-        prev_30 = qs.filter(
-            applied_at__gte=start_prev,
-            applied_at__lt=start_curr
-        ).count()
-
-        pct = None
-        if prev_30:
-            pct = round((past_30 - prev_30) / prev_30 * 100, 1)
-
-        return Response({
-            "total":     total,
-            "pending":   pending,
-            "confirmed": confirmed,
-            "canceled":  canceled,
-            "trend": {
-                "past_30_days": past_30,
-                "prev_30_days": prev_30,
-                "pct_change":   pct
+        def compute(status):
+            sub = qs.filter(status=status)
+            cnt = sub.count()
+            past = sub.filter(applied_at__gte=t0).count()
+            prev = sub.filter(applied_at__gte=t1, applied_at__lt=t0).count()
+            pct = round((past - prev) / prev * 100, 1) if prev else None
+            return {
+                "count":        cnt,
+                "past_30_days": past,
+                "prev_30_days": prev,
+                "pct_change":   pct,
             }
-        }, status=status.HTTP_200_OK)
+
+        data = {
+            "confirmed": compute(Enrollment.Status.CONFIRMED),
+            "pending":   compute(Enrollment.Status.PENDING),
+            "canceled":  compute(Enrollment.Status.CANCELED),
+        }
+
+        ser = self.get_serializer(data=data)
+        ser.is_valid(raise_exception=True)
+        return Response(ser.data, status=status.HTTP_200_OK)
 
     @action(
         detail=True,
@@ -429,8 +440,7 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
     def confirm(self, request, pk=None):
         """
         POST /api/applied-students/{pk}/confirm/
-        Only valid for PENDING enrollments.
-        Moves to CONFIRMED and updates course counts.
+        Only pending enrollments can be confirmed. Updates course counts.
         """
         enrollment = self.get_object()
         if enrollment.status != Enrollment.Status.PENDING:
@@ -439,7 +449,7 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Update course capacity
+        # bump course counts
         course = enrollment.course
         course.booked_places = F("booked_places") + 1
         course.total_places = F("total_places") - 1
@@ -448,10 +458,8 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
         enrollment.status = Enrollment.Status.CONFIRMED
         enrollment.save(update_fields=["status"])
 
-        return Response(
-            AppliedStudentSerializer(enrollment, context={"request": request}).data,
-            status=status.HTTP_200_OK
-        )
+        out = AppliedStudentSerializer(enrollment, context={"request": request})
+        return Response(out.data, status=status.HTTP_200_OK)
 
     @action(
         detail=True,
@@ -463,15 +471,13 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
     def cancel(self, request, pk=None):
         """
         POST /api/applied-students/{pk}/cancel/
-        Body: { "reason": "some text" }
-        If previously CONFIRMED, reverts course counts,
-        then marks enrollment as CANCELED.
+        Body: { "reason": "…" }
+        Reverts counts if it was confirmed, sets status and reason.
         """
         enrollment = self.get_object()
         ser = CancelEnrollmentSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
 
-        # If already confirmed, revert course counts
         if enrollment.status == Enrollment.Status.CONFIRMED:
             course = enrollment.course
             course.booked_places = F("booked_places") - 1
@@ -482,10 +488,8 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
         enrollment.cancelled_reason = ser.validated_data["reason"]
         enrollment.save(update_fields=["status", "cancelled_reason"])
 
-        return Response(
-            AppliedStudentSerializer(enrollment, context={"request": request}).data,
-            status=status.HTTP_200_OK
-        )
+        out = AppliedStudentSerializer(enrollment, context={"request": request})
+        return Response(out.data, status=status.HTTP_200_OK)
 
 
 # Quiz viewsets
