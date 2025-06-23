@@ -25,10 +25,19 @@ class Category(models.Model):
 
 
 class Level(models.Model):
-    name = models.CharField(max_length=255, unique=True)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        related_name="levels"
+    )
+    name = models.CharField(max_length=255)
+
+    class Meta:
+        unique_together = ("category", "name")
+        ordering = ["category__name", "name"]
 
     def __str__(self):
-        return self.name
+        return f"{self.category.name} – {self.name}"
 
 
 class Day(models.Model):
