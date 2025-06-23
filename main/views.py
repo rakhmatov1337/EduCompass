@@ -443,11 +443,6 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
         Only pending enrollments can be confirmed. Updates course counts.
         """
         enrollment = self.get_object()
-        if enrollment.status != Enrollment.Status.PENDING:
-            return Response(
-                {"detail": "Only pending enrollments can be confirmed."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
 
         # bump course counts
         course = enrollment.course
