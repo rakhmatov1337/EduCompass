@@ -354,10 +354,10 @@ class EventDashboardSerializer(serializers.ModelSerializer):
 
 
 class AppliedStudentSerializer(serializers.ModelSerializer):
-    user_full_name = serializers.CharField(
+    full_name = serializers.CharField(
         source="user.full_name", read_only=True
     )
-    user_phone = serializers.CharField(
+    phone_number = serializers.CharField(
         source="user.phone_number", read_only=True
     )
     course_id = serializers.IntegerField(
@@ -368,7 +368,7 @@ class AppliedStudentSerializer(serializers.ModelSerializer):
     )
     status = serializers.CharField(read_only=True
                                    )
-    cancelled_reason = serializers.CharField(
+    cancellation_reason = serializers.CharField(
         allow_blank=True,
         allow_null=True,
         read_only=True
@@ -378,13 +378,13 @@ class AppliedStudentSerializer(serializers.ModelSerializer):
         model = Enrollment
         fields = [
             "id",
-            "user_full_name",
-            "user_phone",
+            "full_name",
+            "phone_number",
             "course_id",
             "course_name",
             "applied_at",
             "status",
-            "cancelled_reason",
+            "cancellation_reason",
         ]
         read_only_fields = fields
 
