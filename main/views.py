@@ -289,10 +289,6 @@ class CourseViewSet(viewsets.ModelViewSet):
     decorator=swagger_auto_schema(operation_summary="Delete an event", tags=["Event"]),
 )
 class EventViewSet(viewsets.ModelViewSet):
-    """
-    SAFE_METHODS: everyone
-    Others:       EDU_CENTER or BRANCH
-    """
 
     queryset = (
         Event.objects.filter(is_archived=False)

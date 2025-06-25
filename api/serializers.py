@@ -153,7 +153,7 @@ class CourseSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer
 
     class Meta:
         model = Course
-        exclude = ["is_archived"]
+        exclude = []
         read_only_fields = ["booked_places"]
 
     def get_branch_name(self, obj):
@@ -361,7 +361,7 @@ class StatItemSerializer(serializers.Serializer):
 
 
 class EnrollmentStatusStatsSerializer(serializers.Serializer):
-    total     = StatItemSerializer()
+    total = StatItemSerializer()
     confirmed = StatItemSerializer()
     pending = StatItemSerializer()
     canceled = StatItemSerializer()
