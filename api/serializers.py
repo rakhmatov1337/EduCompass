@@ -115,8 +115,6 @@ class DaySerializer(serializers.ModelSerializer):
 
 
 class TeacherSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
-    branch = serializers.PrimaryKeyRelatedField(
-        queryset=Branch.objects.all(), required=True)
     branch_id = serializers.IntegerField(source="branch.id", read_only=True)
     branch_name = serializers.CharField(source="branch.name", read_only=True)
 
