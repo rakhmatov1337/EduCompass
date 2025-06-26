@@ -102,15 +102,7 @@ class BranchCreateSerializer(serializers.ModelSerializer):
     latitude = serializers.DecimalField(max_digits=10, decimal_places=7, required=True)
     longitude = serializers.DecimalField(max_digits=11, decimal_places=7, required=True)
 
-    phone_number = serializers.CharField(
-        required=True,
-        validators=[
-            RegexValidator(
-                regex=r"^\+?998\d{9}$",
-                message="Telefon raqam quyidagi formatda bo‘lishi kerak: +998901234567",
-            )
-        ],
-    )
+    phone_number = serializers.CharField()
 
     work_time = serializers.CharField(required=True)
 
