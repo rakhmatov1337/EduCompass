@@ -265,9 +265,36 @@ class CourseViewSet(viewsets.ModelViewSet):
         )
         ser = MyCourseSerializer(qs, many=True, context={"request": request})
         return Response(ser.data)
+    
+    @action(detail=True, methods=["get"], url_path="stats")
+    def stats(self, request, pk=None):
+        course = self.get_object()
+        qs = Enrollment.objects.filter(course=course)
+        now = timezone.now()
+        t0 = now - timedelta(days=30)
+        t1 = now - timedelta(days=60)
 
+        def compute(sub_qs):
+            cnt = sub_qs.count()
+            past = sub_qs.filter(applied_at__gte=t0).count()
+            prev = sub_qs.filter(applied_at__gte=t1, applied_at__lt=t0).count()
+            pct = round((past - prev) / prev * 100, 1) if prev else None
+            return {
+                "count": cnt,
+                "past_30_days": past,
+                "prev_30_days": prev,
+                "pct_change": pct,
+            }
 
-# ─── Event ──────────────────────────────────────────────────────────────────
+        data = {
+            "total": compute(qs),
+            "confirmed": compute(qs.filter(status=Enrollment.Status.CONFIRMED)),
+            "pending": compute(qs.filter(status=Enrollment.Status.PENDING)),
+            "canceled": compute(qs.filter(status=Enrollment.Status.CANCELED)),
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
 
 
 @method_decorator(

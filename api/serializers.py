@@ -1,3 +1,5 @@
+from datetime import timedelta
+from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
@@ -236,6 +238,32 @@ class CourseSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer
         if obj.branch and obj.branch.latitude and obj.branch.longitude:
             return f"https://yandex.com/maps/?rtext=~{obj.branch.latitude},{obj.branch.longitude}"
         return None
+
+
+    def get_statistics(self, obj):
+        qs = Enrollment.objects.filter(course=obj)
+        now = timezone.now()
+        t0 = now - timedelta(days=30)
+        t1 = now - timedelta(days=60)
+
+        def compute(sub_qs):
+            cnt = sub_qs.count()
+            past = sub_qs.filter(applied_at__gte=t0).count()
+            prev = sub_qs.filter(applied_at__gte=t1, applied_at__lt=t0).count()
+            pct = round((past - prev) / prev * 100, 1) if prev else None
+            return {
+                "count": cnt,
+                "past_30_days": past,
+                "prev_30_days": prev,
+                "pct_change": pct,
+            }
+
+        return {
+            "total": compute(qs),
+            "confirmed": compute(qs.filter(status=Enrollment.Status.CONFIRMED)),
+            "pending": compute(qs.filter(status=Enrollment.Status.PENDING)),
+            "canceled": compute(qs.filter(status=Enrollment.Status.CANCELED)),
+        }
 
 
 class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
