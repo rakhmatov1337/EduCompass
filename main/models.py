@@ -131,14 +131,14 @@ class Teacher(models.Model):
         ("FEMALE", "Female"),
     ]
 
-    name = models.CharField(max_length=255)
+    full_name = models.CharField(max_length=255)
     gender = models.CharField(max_length=6, choices=GENDER_CHOICES)
     branch = models.ForeignKey(
         "Branch", on_delete=models.CASCADE, related_name="teachers"
     )
 
     def __str__(self):
-        return f"Teacher - {self.name} - {self.branch}"
+        return f"Teacher - {self.full_name} - {self.branch}"
 
 
 class Branch(models.Model):
@@ -169,12 +169,6 @@ class Branch(models.Model):
         help_text="Ish vaqti, masalan: 09:00-18:00",
     )
     telegram_link = models.URLField(max_length=255, blank=True, null=True)
-
-    admins = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
-        limit_choices_to={"role": "BRANCH"},
-        related_name="branches",
-    )
 
     def __str__(self):
         return f"{self.name} ({self.edu_center.name})"

@@ -98,8 +98,6 @@ class EduCenterCreateSerializer(serializers.ModelSerializer):
 
 
 class BranchCreateSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(write_only=True)
-    password = serializers.CharField(write_only=True)
 
     latitude = serializers.DecimalField(max_digits=10, decimal_places=7, required=True)
     longitude = serializers.DecimalField(max_digits=11, decimal_places=7, required=True)
@@ -128,27 +126,10 @@ class BranchCreateSerializer(serializers.ModelSerializer):
             "longitude",
             "phone_number",
             "work_time",
-            "username",
-            "password",
             "google_map",
             "yandex_map",
         ]
 
-    def create(self, validated_data):
-        username = validated_data.pop("username")
-        password = validated_data.pop("password")
-        edu_center = validated_data.pop("edu_center")
-
-        branch_user = User.objects.create_user(
-            username=username,
-            full_name=validated_data["name"],
-            password=password,
-            role="BRANCH",
-        )
-
-        branch = Branch.objects.create(edu_center=edu_center, **validated_data)
-        branch.admins.add(branch_user)
-        return branch
 
     def get_google_map(self, obj):
         if obj.latitude and obj.longitude:

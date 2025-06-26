@@ -10,26 +10,25 @@ from main.models import (Branch, Category, Course, Day, EducationCenter,
 class DynamicBranchSerializerMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        request = self.context.get("request", None)
+        request = self.context.get("request")
         user = getattr(request, "user", None)
-        if not user or not user.is_authenticated:
-            return
-        if "branch" not in self.fields:
+        if not user or not user.is_authenticated or "branch" not in self.fields:
             return
 
         if user.role == "EDU_CENTER":
-            # EDU_CENTER: faqat o‘z filiallari
             self.fields["branch"] = serializers.PrimaryKeyRelatedField(
-                queryset=Branch.objects.filter(edu_center__user=user), required=True
+                queryset=Branch.objects.filter(edu_center__user=user),
+                required=True,
             )
         elif user.role == "BRANCH":
-            own_branch = user.branches.first()
-            if not own_branch:
-                raise serializers.ValidationError("Sizga oid filial topilmadi.")
-            self.fields["branch"] = serializers.HiddenField(default=own_branch)
+            branch = user.branches.first()
+            if not branch:
+                raise serializers.ValidationError(
+                    "Sizga biriktirilgan filial topilmadi.")
+            self.fields["branch"] = serializers.HiddenField(default=branch)
         else:
             self.fields["branch"] = serializers.PrimaryKeyRelatedField(
-                queryset=Branch.objects.all(), required=False
+                queryset=Branch.objects.none(), required=False
             )
 
 
@@ -116,9 +115,17 @@ class DaySerializer(serializers.ModelSerializer):
 
 
 class TeacherSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
+    branch = serializers.PrimaryKeyRelatedField(
+        queryset=Branch.objects.all(), required=True)
+    branch_id = serializers.IntegerField(source="branch.id", read_only=True)
+    branch_name = serializers.CharField(source="branch.name", read_only=True)
+
     class Meta:
         model = Teacher
-        fields = ["id", "name", "gender", "branch"]
+        fields = ["id", "full_name", "gender", "branch", "branch_id", "branch_name"]
+
+    def get_branch_name(self, obj):
+        return obj.branch.name if obj.branch and obj.branch.name else None
 
 
 class CourseSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
@@ -173,7 +180,7 @@ class CourseSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer
         return obj.level.name if obj.level else None
 
     def get_teacher_name(self, obj):
-        return obj.teacher.name if obj.teacher else None
+        return obj.teacher.full_name if obj.teacher else None
 
     def get_teacher_gender(self, obj):
         return obj.teacher.gender if obj.teacher else None

@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.serializers import EmptySerializer, MyCourseSerializer
+from accounts.permissions import IsEduCenter
 from api.permissions import IsSuperUserOrReadOnly
 from api.filters import CourseFilter, EventFilter
 from api.paginations import DefaultPagination
@@ -117,38 +118,48 @@ class DayViewSet(viewsets.ModelViewSet):
     ),
 )
 class TeacherViewSet(viewsets.ModelViewSet):
-    """
-    SAFE_METHODS:  everyone (AllowAny).
-    Non-safe:      EDU_CENTER or BRANCH only.
-    """
-
     queryset = Teacher.objects.select_related("branch")
     serializer_class = TeacherSerializer
-    permission_classes = [IsEduCenterBranchOrReadOnly]
+
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [AllowAny()]
+        return [IsAuthenticated(), IsEduCenter()]
 
     def get_queryset(self):
+        """
+        EDU_CENTERs see only teachers in their own centers.
+        BRANCH users see only teachers in their own branch.
+        Others (anonymous) see all (list/retrieve only).
+        """
         qs = super().get_queryset()
         user = self.request.user
+
         if user.is_authenticated:
             if user.role == "EDU_CENTER":
                 return qs.filter(branch__edu_center__user=user)
             if user.role == "BRANCH":
                 return qs.filter(branch__admins=user)
-        # STUDENT / anon: see all
         return qs
 
     def perform_create(self, serializer):
         user = self.request.user
         branch = serializer.validated_data["branch"]
-        if user.role == "EDU_CENTER":
-            if branch.edu_center.user != user:
-                raise PermissionDenied(
-                    "You may only add teachers to your own center’s branches."
-                )
-        else:  # BRANCH
-            if user not in branch.admins.all():
-                raise PermissionDenied("You may only add teachers to your own branch.")
+        if branch.edu_center.user != user:
+            raise PermissionDenied(
+                "You may only add teachers to your own center’s branches.")
+
         serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        branch = serializer.validated_data.get("branch", serializer.instance.branch)
+        if branch.edu_center.user != user:
+            raise PermissionDenied("You may only move teachers to branches you own.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        instance.delete()
 
 
 # ─── Course ─────────────────────────────────────────────────────────────────
@@ -204,7 +215,7 @@ class CourseViewSet(viewsets.ModelViewSet):
     search_fields = [
         "name",
         "branch__edu_center__name",
-        "teacher__name",
+        "teacher__full_name",
         "category__name",
     ]
     ordering_fields = ["price", "total_places", "start_date"]
