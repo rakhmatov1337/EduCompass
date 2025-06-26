@@ -122,7 +122,7 @@ class TeacherSerializer(DynamicBranchSerializerMixin, serializers.ModelSerialize
 
     class Meta:
         model = Teacher
-        fields = ["id", "full_name", "gender", "branch", "branch_id", "branch_name"]
+        fields = ["id", "full_name", "gender", "branch_id", "branch_name"]
 
     def get_branch_name(self, obj):
         return obj.branch.name if obj.branch and obj.branch.name else None
