@@ -240,7 +240,7 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], serializer_class=EmptySerializer)
     def apply(self, request, pk=None):
-        course = get_object_or_404(Course, pk=pk, is_archived=False)
+        course = get_object_or_404(Course, pk=pk)
         user = request.user
         if Enrollment.objects.filter(user=user, course=course).exists():
             return Response(
