@@ -1,5 +1,5 @@
 from datetime import timedelta
-from django.db.models import F
+from django.db.models import F, Count, Q, Prefetch
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
@@ -24,7 +24,7 @@ from api.serializers import (AppliedStudentSerializer, CategorySerializer,
                              EduTypeSerializer, EventSerializer,
                              LevelSerializer, TeacherSerializer, UnitSerializer, QuizTypeSerializer,
                              QuizSerializer, QuestionSerializer, AnswerSerializer, QuizSubmitSerializer, QuestionDetailSerializer, SingleAnswerSubmissionSerializer,
-                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer)
+                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer, CourseDashboardDetailSerializer)
 from main.models import (Category, Course, Day, EduType, Enrollment, Event,
                          Level, Teacher, Unit, QuizType, Quiz, Question, Answer)
 
@@ -265,7 +265,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         )
         ser = MyCourseSerializer(qs, many=True, context={"request": request})
         return Response(ser.data)
-    
+
     @action(detail=True, methods=["get"], url_path="stats")
     def stats(self, request, pk=None):
         course = self.get_object()
@@ -294,7 +294,6 @@ class CourseViewSet(viewsets.ModelViewSet):
         }
 
         return Response(data, status=status.HTTP_200_OK)
-
 
 
 @method_decorator(
@@ -350,6 +349,53 @@ class EventViewSet(viewsets.ModelViewSet):
                 return qs.filter(branch__admins=user)
         # STUDENT / anon: see all
         return qs
+
+
+class CourseDashboardDetailViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = CourseDashboardDetailSerializer
+    permission_classes = [IsAuthenticated]
+    queryset = Course.objects.none()
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Course.objects.filter(is_archived=False)
+
+        if user.role == "EDU_CENTER":
+            qs = qs.filter(branch__edu_center__user=user)
+        elif user.role == "BRANCH":
+            qs = qs.filter(branch__admins=user)
+        else:
+            return Course.objects.none()
+
+        return qs.annotate(
+            total_applied=Count("enrollments"),
+            pending_count=Count("enrollments", filter=Q(enrollments__status="PENDING")),
+            confirmed_count=Count("enrollments", filter=Q(
+                enrollments__status="CONFIRMED")),
+            canceled_count=Count("enrollments", filter=Q(
+                enrollments__status="CANCELED")),
+        ).select_related(
+            "branch", "branch__edu_center", "teacher", "level", "category"
+        ).prefetch_related(
+            Prefetch("enrollments", queryset=Enrollment.objects.select_related("user"))
+        )
+
+    def perform_update(self, serializer):
+        course = self.get_object()
+        user = self.request.user
+        if user.role == "EDU_CENTER" and course.branch.edu_center.user != user:
+            raise PermissionDenied("You do not have permission to update this course.")
+        if user.role == "BRANCH" and user not in course.branch.admins.all():
+            raise PermissionDenied("You can only update your own branch’s courses.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if user.role == "EDU_CENTER" and instance.branch.edu_center.user != user:
+            raise PermissionDenied("You do not have permission to delete this course.")
+        if user.role == "BRANCH" and user not in instance.branch.admins.all():
+            raise PermissionDenied("You can only delete your own branch’s courses.")
+        instance.delete()
 
 
 # ─── Filter Schema endpoints ────────────────────────────────────────────────

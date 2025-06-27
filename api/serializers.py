@@ -240,30 +240,52 @@ class CourseSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer
         return None
 
 
-    def get_statistics(self, obj):
-        qs = Enrollment.objects.filter(course=obj)
-        now = timezone.now()
-        t0 = now - timedelta(days=30)
-        t1 = now - timedelta(days=60)
+class CourseEnrollmentStudentSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source="user.full_name", read_only=True)
+    phone_number = serializers.CharField(source="user.phone_number", read_only=True)
+    status = serializers.CharField(read_only=True)
 
-        def compute(sub_qs):
-            cnt = sub_qs.count()
-            past = sub_qs.filter(applied_at__gte=t0).count()
-            prev = sub_qs.filter(applied_at__gte=t1, applied_at__lt=t0).count()
-            pct = round((past - prev) / prev * 100, 1) if prev else None
-            return {
-                "count": cnt,
-                "past_30_days": past,
-                "prev_30_days": prev,
-                "pct_change": pct,
-            }
+    class Meta:
+        model = Enrollment
+        fields = ["id", "full_name", "phone_number", "status", "applied_at"]
 
-        return {
-            "total": compute(qs),
-            "confirmed": compute(qs.filter(status=Enrollment.Status.CONFIRMED)),
-            "pending": compute(qs.filter(status=Enrollment.Status.PENDING)),
-            "canceled": compute(qs.filter(status=Enrollment.Status.CANCELED)),
-        }
+
+class CourseDashboardDetailSerializer(serializers.ModelSerializer):
+    branch_name = serializers.CharField(source="branch.name", read_only=True)
+    teacher_name = serializers.CharField(source="teacher.name", read_only=True)
+    level_name = serializers.CharField(source="level.name", read_only=True)
+    category_name = serializers.CharField(source="category.name", read_only=True)
+
+    total_applied = serializers.IntegerField(read_only=True)
+    pending_count = serializers.IntegerField(read_only=True)
+    confirmed_count = serializers.IntegerField(read_only=True)
+    canceled_count = serializers.IntegerField(read_only=True)
+
+    students = CourseEnrollmentStudentSerializer(
+        many=True, read_only=True, source="enrollments"
+    )
+
+    class Meta:
+        model = Course
+        fields = [
+            "id", "name", "branch_name", "teacher_name", "level_name", "category_name",
+            "price", "discount", "final_price", "total_places", "booked_places",
+            "start_date", "end_date",
+            "total_applied", "pending_count", "confirmed_count", "canceled_count",
+            "students",
+        ]
+
+    def get_total_applied(self, obj):
+        return obj.enrollments.count()
+
+    def get_pending_count(self, obj):
+        return obj.enrollments.filter(status=Enrollment.Status.PENDING).count()
+
+    def get_confirmed_count(self, obj):
+        return obj.enrollments.filter(status=Enrollment.Status.CONFIRMED).count()
+
+    def get_canceled_count(self, obj):
+        return obj.enrollments.filter(status=Enrollment.Status.CANCELED).count()
 
 
 class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
