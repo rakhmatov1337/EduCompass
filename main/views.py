@@ -204,7 +204,7 @@ class TeacherViewSet(viewsets.ModelViewSet):
 )
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = (
-        Course.objects.filter(is_archived=False)
+        Course.objects.filter()
         .select_related("branch", "branch__edu_center", "teacher", "category", "level")
         .prefetch_related("days")
     )
@@ -355,49 +355,44 @@ class EventViewSet(viewsets.ModelViewSet):
 class CourseDashboardDetailViewSet(viewsets.ModelViewSet):
     serializer_class = CourseDashboardDetailSerializer
     permission_classes = [IsAuthenticated]
-    queryset = Course.objects.none()
+    queryset = Course._base_manager.none()
 
     def get_queryset(self):
         user = self.request.user
-        qs = Course.objects.filter()
+        qs = Course._base_manager.all()
 
         if user.role == "EDU_CENTER":
             qs = qs.filter(branch__edu_center__user=user)
         elif user.role == "BRANCH":
             qs = qs.filter(branch__admins=user)
         else:
-            return Course.objects.none()
-
-        return qs.annotate(
-            total_applied=Count("enrollments"),
+            return Course._base_manager.none()
+        qs = qs.annotate(
+            total_applied=Count("enrollments", distinct=True),
             pending_count=Count("enrollments", filter=Q(enrollments__status="PENDING")),
             confirmed_count=Count("enrollments", filter=Q(
                 enrollments__status="CONFIRMED")),
             canceled_count=Count("enrollments", filter=Q(
                 enrollments__status="CANCELED")),
-        ).select_related(
-            "branch", "branch__edu_center", "teacher", "level", "category"
-        ).prefetch_related(
+        )
+        qs = qs.select_related(
+            "branch",
+            "branch__edu_center",
+            "branch__edu_center__user",
+            "teacher",
+            "level",
+            "category",
+        )
+        qs = qs.prefetch_related(
             "days",
-            Prefetch("enrollments", queryset=Enrollment.objects.select_related("user"))
+            Prefetch(
+                "enrollments",
+                queryset=Enrollment.objects.select_related("user"),
+                to_attr="prefetched_enrollments"
+            ),
         )
 
-    def perform_update(self, serializer):
-        course = self.get_object()
-        user = self.request.user
-        if user.role == "EDU_CENTER" and course.branch.edu_center.user != user:
-            raise PermissionDenied("You do not have permission to update this course.")
-        if user.role == "BRANCH" and user not in course.branch.admins.all():
-            raise PermissionDenied("You can only update your own branch’s courses.")
-        serializer.save()
-
-    def perform_destroy(self, instance):
-        user = self.request.user
-        if user.role == "EDU_CENTER" and instance.branch.edu_center.user != user:
-            raise PermissionDenied("You do not have permission to delete this course.")
-        if user.role == "BRANCH" and user not in instance.branch.admins.all():
-            raise PermissionDenied("You can only delete your own branch’s courses.")
-        instance.delete()
+        return qs
 
 
 
