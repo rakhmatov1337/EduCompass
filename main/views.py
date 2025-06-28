@@ -359,7 +359,7 @@ class CourseDashboardDetailViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Course.objects.filter(is_archived=False)
+        qs = Course.objects.filter()
 
         if user.role == "EDU_CENTER":
             qs = qs.filter(branch__edu_center__user=user)
