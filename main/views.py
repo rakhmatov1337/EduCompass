@@ -265,7 +265,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         )
         ser = MyCourseSerializer(qs, many=True, context={"request": request})
         return Response(ser.data)
-
+    
     @action(detail=True, methods=["get"], url_path="stats")
     def stats(self, request, pk=None):
         course = self.get_object()
@@ -294,6 +294,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         }
 
         return Response(data, status=status.HTTP_200_OK)
+
 
 
 @method_decorator(
@@ -351,7 +352,7 @@ class EventViewSet(viewsets.ModelViewSet):
         return qs
 
 
-class CourseDashboardDetailViewSet(viewsets.ReadOnlyModelViewSet):
+class CourseDashboardDetailViewSet(viewsets.ModelViewSet):
     serializer_class = CourseDashboardDetailSerializer
     permission_classes = [IsAuthenticated]
     queryset = Course.objects.none()
@@ -377,6 +378,7 @@ class CourseDashboardDetailViewSet(viewsets.ReadOnlyModelViewSet):
         ).select_related(
             "branch", "branch__edu_center", "teacher", "level", "category"
         ).prefetch_related(
+            "days",
             Prefetch("enrollments", queryset=Enrollment.objects.select_related("user"))
         )
 
@@ -396,6 +398,7 @@ class CourseDashboardDetailViewSet(viewsets.ReadOnlyModelViewSet):
         if user.role == "BRANCH" and user not in instance.branch.admins.all():
             raise PermissionDenied("You can only delete your own branch’s courses.")
         instance.delete()
+
 
 
 # ─── Filter Schema endpoints ────────────────────────────────────────────────

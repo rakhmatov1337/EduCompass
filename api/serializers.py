@@ -251,29 +251,50 @@ class CourseEnrollmentStudentSerializer(serializers.ModelSerializer):
 
 
 class CourseDashboardDetailSerializer(serializers.ModelSerializer):
+    final_price = serializers.DecimalField(
+        read_only=True, max_digits=10, decimal_places=2)
+    available_places = serializers.IntegerField(read_only=True)
+
+    # Display fields
     branch_name = serializers.CharField(source="branch.name", read_only=True)
-    teacher_name = serializers.CharField(source="teacher.name", read_only=True)
+    teacher_name = serializers.CharField(source="teacher.full_name", read_only=True)
     level_name = serializers.CharField(source="level.name", read_only=True)
     category_name = serializers.CharField(source="category.name", read_only=True)
 
-    total_applied = serializers.IntegerField(read_only=True)
-    pending_count = serializers.IntegerField(read_only=True)
-    confirmed_count = serializers.IntegerField(read_only=True)
-    canceled_count = serializers.IntegerField(read_only=True)
+    # ID fields
+    branch_id = serializers.IntegerField(source="branch.id", read_only=True)
+    category_id = serializers.IntegerField(source="category.id", read_only=True)
+    level_id = serializers.IntegerField(source="level.id", read_only=True)
+    teacher_id = serializers.IntegerField(source="teacher.id", read_only=True)
 
+    # Other computed fields
+    days = serializers.SerializerMethodField()
+    duration_months = serializers.SerializerMethodField()
+
+    # Enrollment statistics
+    total_applied = serializers.SerializerMethodField()
+    pending_count = serializers.SerializerMethodField()
+    confirmed_count = serializers.SerializerMethodField()
+    canceled_count = serializers.SerializerMethodField()
+
+    # Student list
     students = CourseEnrollmentStudentSerializer(
         many=True, read_only=True, source="enrollments"
     )
 
     class Meta:
         model = Course
-        fields = [
-            "id", "name", "branch_name", "teacher_name", "level_name", "category_name",
-            "price", "discount", "final_price", "total_places", "booked_places",
-            "start_date", "end_date",
-            "total_applied", "pending_count", "confirmed_count", "canceled_count",
-            "students",
-        ]
+        exclude = []  # Includes all fields
+        read_only_fields = ["booked_places"]
+
+    def get_days(self, obj):
+        return [day.name[:3].capitalize() for day in obj.days.all()]
+
+    def get_duration_months(self, obj):
+        if obj.start_date and obj.end_date:
+            delta = relativedelta(obj.end_date, obj.start_date)
+            return delta.years * 12 + delta.months + (1 if delta.days > 0 else 0)
+        return None
 
     def get_total_applied(self, obj):
         return obj.enrollments.count()
