@@ -315,6 +315,38 @@ class CourseDashboardDetailSerializer(serializers.ModelSerializer):
         return obj.enrollments.filter(status=Enrollment.Status.CANCELED).count()
 
 
+class CourseWriteSerializer(serializers.ModelSerializer):
+    branch = serializers.PrimaryKeyRelatedField(queryset=Branch.objects.all())
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
+    level = serializers.PrimaryKeyRelatedField(queryset=Level.objects.all())
+    teacher = serializers.PrimaryKeyRelatedField(queryset=Teacher.objects.all())
+    days = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Day.objects.all()
+    )
+
+    class Meta:
+        model = Course
+        fields = [
+            'id',
+            'name',
+            'branch',
+            'category',
+            'days',
+            'level',
+            'start_date',
+            'end_date',
+            'total_places',
+            'teacher',
+            'price',
+            'discount',
+            'start_time',
+            'end_time',
+            'intensive',
+            'is_archived',
+        ]
+        read_only_fields = ['id']
+
 class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
     edu_center_name = serializers.SerializerMethodField(read_only=True)
     edu_center_logo = serializers.SerializerMethodField(read_only=True)

@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, mixins
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -24,7 +24,7 @@ from api.serializers import (AppliedStudentSerializer, CategorySerializer,
                              EduTypeSerializer, EventSerializer,
                              LevelSerializer, TeacherSerializer, UnitSerializer, QuizTypeSerializer,
                              QuizSerializer, QuestionSerializer, AnswerSerializer, QuizSubmitSerializer, QuestionDetailSerializer, SingleAnswerSubmissionSerializer,
-                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer, CourseDashboardDetailSerializer)
+                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer, CourseDashboardDetailSerializer, CourseWriteSerializer)
 from main.models import (Category, Course, Day, EduType, Enrollment, Event,
                          Level, Teacher, Unit, QuizType, Quiz, Question, Answer)
 
@@ -352,10 +352,19 @@ class EventViewSet(viewsets.ModelViewSet):
         return qs
 
 
-class CourseDashboardDetailViewSet(viewsets.ModelViewSet):
-    serializer_class = CourseDashboardDetailSerializer
+class CourseDashboardDetailViewSet(
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet
+):
     permission_classes = [IsAuthenticated]
-    queryset = Course._base_manager.none()
+    queryset = Course._base_manager.all()
+
+    def get_serializer_class(self):
+        if self.action in ('update', 'partial_update'):
+            return CourseWriteSerializer
+        return CourseDashboardDetailSerializer
 
     def get_queryset(self):
         user = self.request.user
@@ -367,32 +376,31 @@ class CourseDashboardDetailViewSet(viewsets.ModelViewSet):
             qs = qs.filter(branch__admins=user)
         else:
             return Course._base_manager.none()
-        qs = qs.annotate(
-            total_applied=Count("enrollments", distinct=True),
-            pending_count=Count("enrollments", filter=Q(enrollments__status="PENDING")),
-            confirmed_count=Count("enrollments", filter=Q(
-                enrollments__status="CONFIRMED")),
-            canceled_count=Count("enrollments", filter=Q(
-                enrollments__status="CANCELED")),
-        )
-        qs = qs.select_related(
-            "branch",
-            "branch__edu_center",
-            "branch__edu_center__user",
-            "teacher",
-            "level",
-            "category",
-        )
-        qs = qs.prefetch_related(
-            "days",
-            Prefetch(
-                "enrollments",
-                queryset=Enrollment.objects.select_related("user"),
-                to_attr="prefetched_enrollments"
-            ),
-        )
 
-        return qs
+        return (
+            qs
+            .annotate(
+                total_applied=Count("enrollments", distinct=True),
+                pending_count=Count("enrollments", filter=Q(
+                    enrollments__status="PENDING")),
+                confirmed_count=Count("enrollments", filter=Q(
+                    enrollments__status="CONFIRMED")),
+                canceled_count=Count("enrollments", filter=Q(
+                    enrollments__status="CANCELED")),
+            )
+            .select_related(
+                "branch", "branch__edu_center", "branch__edu_center__user",
+                "teacher", "level", "category",
+            )
+            .prefetch_related(
+                "days",
+                Prefetch(
+                    "enrollments",
+                    queryset=Enrollment.objects.select_related("user"),
+                    to_attr="prefetched_enrollments"
+                ),
+            )
+        )
 
 
 
