@@ -12,7 +12,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from accounts.serializers import EmptySerializer, MyCourseSerializer
 from accounts.permissions import IsEduCenter
 from api.permissions import IsSuperUserOrReadOnly
@@ -24,7 +24,7 @@ from api.serializers import (AppliedStudentSerializer, CategorySerializer,
                              EduTypeSerializer, EventSerializer,
                              LevelSerializer, TeacherSerializer, UnitSerializer, QuizTypeSerializer,
                              QuizSerializer, QuestionSerializer, AnswerSerializer, QuizSubmitSerializer, QuestionDetailSerializer, SingleAnswerSubmissionSerializer,
-                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer, CourseDashboardDetailSerializer, CourseWriteSerializer)
+                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer, CourseWriteSerializer)
 from main.models import (Category, Course, Day, EduType, Enrollment, Event,
                          Level, Teacher, Unit, QuizType, Quiz, Question, Answer)
 
@@ -203,11 +203,6 @@ class TeacherViewSet(viewsets.ModelViewSet):
     decorator=swagger_auto_schema(operation_summary="Delete a course", tags=["Course"]),
 )
 class CourseViewSet(viewsets.ModelViewSet):
-    queryset = (
-        Course.objects.filter()
-        .select_related("branch", "branch__edu_center", "teacher", "category", "level")
-        .prefetch_related("days")
-    )
     serializer_class = CourseSerializer
     pagination_class = DefaultPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
@@ -220,6 +215,15 @@ class CourseViewSet(viewsets.ModelViewSet):
     ]
     ordering_fields = ["price", "total_places", "start_date"]
     ordering = ["start_date"]
+    queryset = Course.objects.select_related(
+        "branch",
+        "branch__edu_center",
+        "teacher",
+        "category",
+        "level",
+    ).prefetch_related(
+        "days"
+    )
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
@@ -231,12 +235,30 @@ class CourseViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user
+
         if user.is_authenticated:
             if user.role == "EDU_CENTER":
-                return qs.filter(branch__edu_center__user=user)
-            if user.role == "BRANCH":
-                return qs.filter(branch__admins=user)
+                qs = qs.filter(branch__edu_center__user=user)
+            elif user.role == "BRANCH":
+                qs = qs.filter(branch__admins=user)
+
+        qs = qs.annotate(
+            total_applied=Count("enrollments", distinct=True),
+            pending_count=Count("enrollments", filter=Q(enrollments__status="PENDING")),
+            confirmed_count=Count("enrollments", filter=Q(
+                enrollments__status="CONFIRMED")),
+            canceled_count=Count("enrollments", filter=Q(
+                enrollments__status="CANCELED")),
+        )
+        qs = qs.prefetch_related(
+            Prefetch(
+                "enrollments",
+                queryset=Enrollment.objects.select_related("user"),
+                to_attr="prefetched_enrollments"
+            )
+        )
         return qs
+
 
     @action(detail=True, methods=["post"], serializer_class=EmptySerializer)
     def apply(self, request, pk=None):
@@ -265,7 +287,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         )
         ser = MyCourseSerializer(qs, many=True, context={"request": request})
         return Response(ser.data)
-    
+
     @action(detail=True, methods=["get"], url_path="stats")
     def stats(self, request, pk=None):
         course = self.get_object()
@@ -294,7 +316,6 @@ class CourseViewSet(viewsets.ModelViewSet):
         }
 
         return Response(data, status=status.HTTP_200_OK)
-
 
 
 @method_decorator(
@@ -348,60 +369,7 @@ class EventViewSet(viewsets.ModelViewSet):
                 return qs.filter(edu_center__user=user)
             if user.role == "BRANCH":
                 return qs.filter(branch__admins=user)
-        # STUDENT / anon: see all
         return qs
-
-
-class CourseDashboardDetailViewSet(
-    mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet
-):
-    permission_classes = [IsAuthenticated]
-    queryset = Course._base_manager.all()
-
-    def get_serializer_class(self):
-        if self.action in ('update', 'partial_update'):
-            return CourseWriteSerializer
-        return CourseDashboardDetailSerializer
-
-    def get_queryset(self):
-        user = self.request.user
-        qs = Course._base_manager.all()
-
-        if user.role == "EDU_CENTER":
-            qs = qs.filter(branch__edu_center__user=user)
-        elif user.role == "BRANCH":
-            qs = qs.filter(branch__admins=user)
-        else:
-            return Course._base_manager.none()
-
-        return (
-            qs
-            .annotate(
-                total_applied=Count("enrollments", distinct=True),
-                pending_count=Count("enrollments", filter=Q(
-                    enrollments__status="PENDING")),
-                confirmed_count=Count("enrollments", filter=Q(
-                    enrollments__status="CONFIRMED")),
-                canceled_count=Count("enrollments", filter=Q(
-                    enrollments__status="CANCELED")),
-            )
-            .select_related(
-                "branch", "branch__edu_center", "branch__edu_center__user",
-                "teacher", "level", "category",
-            )
-            .prefetch_related(
-                "days",
-                Prefetch(
-                    "enrollments",
-                    queryset=Enrollment.objects.select_related("user"),
-                    to_attr="prefetched_enrollments"
-                ),
-            )
-        )
-
 
 
 # ─── Filter Schema endpoints ────────────────────────────────────────────────

@@ -130,56 +130,86 @@ class TeacherSerializer(DynamicBranchSerializerMixin, serializers.ModelSerialize
         return obj.branch.name if obj.branch and obj.branch.name else None
 
 
-class CourseSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
+class CourseEnrollmentStudentSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source="user.full_name", read_only=True)
+    phone_number = serializers.CharField(source="user.phone_number", read_only=True)
+    status = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Enrollment
+        fields = ["id", "full_name", "phone_number", "status"]
+
+
+class CourseSerializer(serializers.ModelSerializer):
+    # — Writeable PK fields for relations —
+    branch = serializers.PrimaryKeyRelatedField(queryset=Branch.objects.all())
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
+    level = serializers.PrimaryKeyRelatedField(queryset=Level.objects.all())
+    teacher = serializers.PrimaryKeyRelatedField(queryset=Teacher.objects.all())
+    days = serializers.PrimaryKeyRelatedField(many=True, queryset=Day.objects.all())
+
+    # — Computed read-only fields —
     final_price = serializers.DecimalField(
-        read_only=True, max_digits=10, decimal_places=2
-    )
+        read_only=True, max_digits=10, decimal_places=2)
     available_places = serializers.IntegerField(read_only=True)
 
+    # — Read-only “display” fields —
     branch_name = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
     level_name = serializers.SerializerMethodField()
     teacher_name = serializers.SerializerMethodField()
     teacher_gender = serializers.SerializerMethodField()
-    days = serializers.SerializerMethodField()
     duration_months = serializers.SerializerMethodField()
-
+    work_time = serializers.SerializerMethodField()
     edu_center_logo = serializers.SerializerMethodField()
     cover = serializers.SerializerMethodField()
-
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
     phone_number = serializers.SerializerMethodField()
     telegram_link = serializers.SerializerMethodField()
-    branch_id = serializers.IntegerField(source="branch.id", read_only=True)
-    category_id = serializers.IntegerField(source="category.id", read_only=True)
-    level_id = serializers.IntegerField(source="level.id", read_only=True)
-    teacher_id = serializers.IntegerField(source="teacher.id", read_only=True)
-
     google_map = serializers.SerializerMethodField()
     yandex_map = serializers.SerializerMethodField()
-    work_time = serializers.SerializerMethodField()
+
+    # — Prefetched enrollments —
+    students = CourseEnrollmentStudentSerializer(
+        many=True,
+        read_only=True,
+        source="prefetched_enrollments"
+    )
 
     class Meta:
         model = Course
         fields = [
             "id", "name", "is_archived",
-            "branch_id", "branch_name",
-            "teacher_id", "teacher_name",
-            "level_id", "level_name",
-            "category_id", "category_name",
-            "days", "duration_months", 'work_time', 'cover', 'yandex_map', 'google_map', 'teacher_gender', 'latitude', 'longitude', 'phone_number', 'final_price', 'available_places', 'edu_center_logo', 'telegram_link'
+
+            # writeable relationships
+            "branch", "branch_name",
+            "category", "category_name",
+            "level", "level_name",
+            "teacher", "teacher_name", "teacher_gender",
+            "days",
+
+            # scheduling & pricing
+            "start_date", "end_date",
+            "total_places", "price", "discount",
+            "start_time", "end_time", "intensive",
+            "final_price", "available_places",
+            "duration_months", "work_time",
+
+            # media & mapping
+            "edu_center_logo", "cover",
+            "latitude", "longitude",
+            "phone_number", "telegram_link",
+            "google_map", "yandex_map",
+
+            # students list
+            "students",
         ]
 
     def get_branch_name(self, obj):
-        return (
-            f"{obj.branch.name} - {obj.branch.edu_center.name}"
-            if obj.branch and obj.branch.edu_center
-            else None
-        )
-
-    def get_work_time(self, obj):
-        return obj.branch.work_time if obj.branch else None
+        if obj.branch and obj.branch.edu_center:
+            return f"{obj.branch.name} – {obj.branch.edu_center.name}"
+        return None
 
     def get_category_name(self, obj):
         return obj.category.name if obj.category else None
@@ -193,47 +223,41 @@ class CourseSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer
     def get_teacher_gender(self, obj):
         return obj.teacher.gender if obj.teacher else None
 
-    def get_days(self, obj):
-        return [day.name[:3].capitalize() for day in obj.days.all()]
-
     def get_duration_months(self, obj):
         if obj.start_date and obj.end_date:
-            delta = relativedelta(obj.end_date, obj.start_date)
-            months = delta.years * 12 + delta.months + (1 if delta.days > 0 else 0)
+            d = relativedelta(obj.end_date, obj.start_date)
+            months = d.years * 12 + d.months + (1 if d.days > 0 else 0)
             return months
         return None
 
+    def get_work_time(self, obj):
+        return obj.branch.work_time if obj.branch else None
+
     def get_edu_center_logo(self, obj):
         req = self.context.get("request")
-        url = obj.branch.edu_center.logo.url if obj.branch.edu_center.logo else None
-        return req.build_absolute_uri(url) if req and url else url
+        logo = getattr(obj.branch.edu_center, "logo", None)
+        if logo and req:
+            return req.build_absolute_uri(logo.url)
+        return getattr(logo, "url", None)
 
     def get_cover(self, obj):
         req = self.context.get("request")
-        url = obj.branch.edu_center.cover.url if obj.branch.edu_center.cover else None
-        return req.build_absolute_uri(url) if req and url else url
+        cover = getattr(obj.branch.edu_center, "cover", None)
+        if cover and req:
+            return req.build_absolute_uri(cover.url)
+        return getattr(cover, "url", None)
 
     def get_latitude(self, obj):
-        return (
-            float(obj.branch.latitude) if obj.branch and obj.branch.latitude else None
-        )
+        return float(obj.branch.latitude) if obj.branch and obj.branch.latitude else None
 
     def get_longitude(self, obj):
-        return (
-            float(obj.branch.longitude) if obj.branch and obj.branch.longitude else None
-        )
+        return float(obj.branch.longitude) if obj.branch and obj.branch.longitude else None
 
     def get_phone_number(self, obj):
-        return (
-            obj.branch.phone_number if obj.branch and obj.branch.phone_number else None
-        )
+        return obj.branch.phone_number if obj.branch else None
 
     def get_telegram_link(self, obj):
-        return (
-            obj.branch.edu_center.telegram_link
-            if obj.branch.edu_center.telegram_link
-            else None
-        )
+        return obj.branch.edu_center.telegram_link if obj.branch and obj.branch.edu_center else None
 
     def get_google_map(self, obj):
         if obj.branch and obj.branch.latitude and obj.branch.longitude:
@@ -246,106 +270,6 @@ class CourseSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer
         return None
 
 
-class CourseEnrollmentStudentSerializer(serializers.ModelSerializer):
-    full_name = serializers.CharField(source="user.full_name", read_only=True)
-    phone_number = serializers.CharField(source="user.phone_number", read_only=True)
-    status = serializers.CharField(read_only=True)
-
-    class Meta:
-        model = Enrollment
-        fields = ["id", "full_name", "phone_number", "status"]
-
-
-class CourseDashboardDetailSerializer(serializers.ModelSerializer):
-    total_applied = serializers.IntegerField(read_only=True)
-    pending_count = serializers.IntegerField(read_only=True)
-    confirmed_count = serializers.IntegerField(read_only=True)
-    canceled_count = serializers.IntegerField(read_only=True)
-    branch_id = serializers.IntegerField(source="branch.id",   read_only=True)
-    branch_name = serializers.CharField(source="branch.name",    read_only=True)
-    teacher_id = serializers.IntegerField(source="teacher.id",  read_only=True)
-    teacher_name = serializers.CharField(source="teacher.full_name", read_only=True)
-    level_id = serializers.IntegerField(source="level.id",    read_only=True)
-    level_name = serializers.CharField(source="level.name",     read_only=True)
-    category_id = serializers.IntegerField(source="category.id", read_only=True)
-    category_name = serializers.CharField(source="category.name",  read_only=True)
-    days = serializers.SlugRelatedField(
-        many=True,
-        read_only=True,
-        slug_field="name"
-    )
-    duration_months = serializers.SerializerMethodField()
-    students = CourseEnrollmentStudentSerializer(
-        many=True,
-        read_only=True,
-        source="prefetched_enrollments"
-    )
-
-    class Meta:
-        model = Course
-        fields = [
-            "id", "name", "is_archived",
-            "branch_id", "branch_name",
-            "teacher_id", "teacher_name",
-            "level_id", "level_name",
-            "category_id", "category_name",
-            "total_applied", "pending_count", "confirmed_count", "canceled_count",
-            "days", "duration_months", "students",
-        ]
-
-    def get_duration_months(self, obj):
-        if obj.start_date and obj.end_date:
-            delta = relativedelta(obj.end_date, obj.start_date)
-            return delta.years * 12 + delta.months + (1 if delta.days > 0 else 0)
-        return None
-
-    def get_days(self, obj):
-        return [day.name[:3].capitalize() for day in obj.days.all()]
-
-    def get_total_applied(self, obj):
-        return obj.enrollments.count()
-
-    def get_pending_count(self, obj):
-        return obj.enrollments.filter(status=Enrollment.Status.PENDING).count()
-
-    def get_confirmed_count(self, obj):
-        return obj.enrollments.filter(status=Enrollment.Status.CONFIRMED).count()
-
-    def get_canceled_count(self, obj):
-        return obj.enrollments.filter(status=Enrollment.Status.CANCELED).count()
-
-
-class CourseWriteSerializer(serializers.ModelSerializer):
-    branch = serializers.PrimaryKeyRelatedField(queryset=Branch.objects.all())
-    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
-    level = serializers.PrimaryKeyRelatedField(queryset=Level.objects.all())
-    teacher = serializers.PrimaryKeyRelatedField(queryset=Teacher.objects.all())
-    days = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=Day.objects.all()
-    )
-
-    class Meta:
-        model = Course
-        fields = [
-            'id',
-            'name',
-            'branch',
-            'category',
-            'days',
-            'level',
-            'start_date',
-            'end_date',
-            'total_places',
-            'teacher',
-            'price',
-            'discount',
-            'start_time',
-            'end_time',
-            'intensive',
-            'is_archived',
-        ]
-        read_only_fields = ['id']
 
 class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
     edu_center_name = serializers.SerializerMethodField(read_only=True)
@@ -422,32 +346,6 @@ class TeacherDashboardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Teacher
         fields = ["id", "name", "gender", "branch"]
-
-
-class CourseDashboardSerializer(serializers.ModelSerializer):
-    branch = serializers.CharField(source="branch.name", read_only=True)
-    teacher = serializers.CharField(source="teacher.name", read_only=True)
-
-    class Meta:
-        model = Course
-        fields = [
-            "id",
-            "name",
-            "category",
-            "level",
-            "days",
-            "start_date",
-            "end_date",
-            "total_places",
-            "booked_places",
-            "price",
-            "discount",
-            "start_time",
-            "end_time",
-            "intensive",
-            "branch",
-            "teacher",
-        ]
 
 
 class EventDashboardSerializer(serializers.ModelSerializer):

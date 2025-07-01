@@ -13,7 +13,7 @@ from accounts.views import (BranchViewSet, CurrentUserRetrieveUpdateView,
 from main.views import (AppliedStudentViewSet, CategoryViewSet,
                         CourseFilterSchemaView, CourseViewSet, DayViewSet,
                         EduTypeViewSet, EventFilterSchemaView, EventViewSet,
-                        LevelViewSet, TeacherViewSet, CourseDashboardDetailViewSet)
+                        LevelViewSet, TeacherViewSet)
 from quiz.views import (
     QuizViewSet, QuestionViewSet, AnswerViewSet,
     UserQuizResultViewSet, UserLevelProgressViewSet, QuizFilterSchemaView
@@ -30,8 +30,6 @@ router.register("courses", CourseViewSet, basename="courses")
 router.register("edu-centers", EduCenterViewSet, basename="edu-centers")
 router.register("events", EventViewSet, basename="event")
 router.register("applied-students", AppliedStudentViewSet, basename="applied-students")
-router.register("dashboard/courses", CourseDashboardDetailViewSet,
-                basename="dashboard-courses")
 
 # quiz routers
 
