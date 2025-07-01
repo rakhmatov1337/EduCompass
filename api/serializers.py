@@ -152,12 +152,6 @@ class CourseEnrollmentStudentSerializer(serializers.ModelSerializer):
 
 
 class CourseSerializer(serializers.ModelSerializer):
-    # — Writeable PK fields for relations —
-    branch = serializers.PrimaryKeyRelatedField(queryset=Branch.objects.all())
-    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
-    level = serializers.PrimaryKeyRelatedField(queryset=Level.objects.all())
-    teacher = serializers.PrimaryKeyRelatedField(queryset=Teacher.objects.all())
-    days = serializers.PrimaryKeyRelatedField(many=True, queryset=Day.objects.all())
 
     # — Computed read-only fields —
     final_price = serializers.DecimalField(
@@ -165,6 +159,7 @@ class CourseSerializer(serializers.ModelSerializer):
     available_places = serializers.IntegerField(read_only=True)
 
     # — Read-only “display” fields —
+    days = serializers.SerializerMethodField()
     branch_name = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
     level_name = serializers.SerializerMethodField()
@@ -217,6 +212,9 @@ class CourseSerializer(serializers.ModelSerializer):
             "students",
         ]
 
+    def get_days(self, obj):
+        return [day.name[:3].capitalize() for day in obj.days.all()]
+    
     def get_branch_name(self, obj):
         if obj.branch and obj.branch.edu_center:
             return f"{obj.branch.name} – {obj.branch.edu_center.name}"
