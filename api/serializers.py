@@ -91,20 +91,31 @@ class EduTypeSerializer(serializers.ModelSerializer):
         fields = ["id", "name"]
 
 
-class CategorySerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(read_only=True)
-
-    class Meta:
-        model = Category
-        fields = ["id", "name"]
-
-
 class LevelSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        source='category',
+        queryset=Category.objects.all(),
+        write_only=True
+    )
+    category = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Level
-        fields = ["id", "name"]
+        fields = ['id', 'name', 'category_id', 'category']
+
+    def get_category(self, obj):
+        return {
+            'id':   obj.category.id,
+            'name': obj.category.name
+        } if obj.category else None
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    levels = LevelSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'levels']
 
 
 class DaySerializer(serializers.ModelSerializer):

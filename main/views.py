@@ -24,7 +24,7 @@ from api.serializers import (AppliedStudentSerializer, CategorySerializer,
                              EduTypeSerializer, EventSerializer,
                              LevelSerializer, TeacherSerializer, UnitSerializer, QuizTypeSerializer,
                              QuizSerializer, QuestionSerializer, AnswerSerializer, QuizSubmitSerializer, QuestionDetailSerializer, SingleAnswerSubmissionSerializer,
-                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer, CourseWriteSerializer)
+                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer)
 from main.models import (Category, Course, Day, EduType, Enrollment, Event,
                          Level, Teacher, Unit, QuizType, Quiz, Question, Answer)
 
@@ -62,11 +62,11 @@ class EduTypeViewSet(viewsets.ModelViewSet):
         operation_summary="Create a new category (Superuser only)", tags=["Category"]
     ),
 )
+
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsSuperUserOrReadOnly]
-
 
 @method_decorator(
     name="list",
@@ -81,7 +81,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     ),
 )
 class LevelViewSet(viewsets.ModelViewSet):
-    queryset = Level.objects.all()
+    queryset = Level.objects.select_related('category').all()
     serializer_class = LevelSerializer
     permission_classes = [IsSuperUserOrReadOnly]
 
