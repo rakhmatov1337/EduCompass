@@ -191,7 +191,7 @@ class CourseSerializer(serializers.ModelSerializer):
             "category", "category_name",
             "level", "level_name",
             "teacher", "teacher_name", "teacher_gender",
-            "days", 'branch_id', 'category_id', 'teacher_id',
+            "days", 'branch_id', 'category_id', 'teacher_id', 'level_id',
 
             # scheduling & pricing
             "start_date", "end_date",
