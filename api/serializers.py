@@ -204,7 +204,7 @@ class CourseSerializer(serializers.ModelSerializer):
             "total_places", "price", "discount",
             "start_time", "end_time", "intensive",
             "final_price", "available_places",
-            "duration_months", "work_time",
+            "duration_months", "work_time", 'days_input',
 
             # media & mapping
             "edu_center_logo", "cover",
