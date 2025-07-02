@@ -225,6 +225,13 @@ class CourseViewSet(viewsets.ModelViewSet):
         "days"
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        data = getattr(self, 'initial_data', None)
+        cat = data.get('category') if isinstance(data, dict) else None
+        if cat:
+            self.fields['level'].queryset = Level.objects.filter(category_id=cat)
+
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [AllowAny()]

@@ -212,7 +212,7 @@ class Course(models.Model):
     booked_places = models.IntegerField(default=0)
     total_places = models.IntegerField()
     teacher = models.ForeignKey(
-        Teacher, on_delete=models.CASCADE, related_name="courses"
+        Teacher, on_delete=models.SET_NULL, related_name="courses", null=True
     )
     price = models.DecimalField(max_digits=10, decimal_places=2)
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
