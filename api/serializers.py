@@ -174,13 +174,7 @@ class CourseSerializer(serializers.ModelSerializer):
     branch_id = serializers.IntegerField()
     category_id = serializers.IntegerField()
     teacher_id = serializers.IntegerField()
-
-    # — Prefetched enrollments —
-    days = serializers.CharField(
-        write_only=True,
-        required=False,
-        help_text='Comma-separated days, e.g. "Sun,Sat,Fri"'
-    )
+    level_id = serializers.IntegerField()
     students = CourseEnrollmentStudentSerializer(
         many=True,
         read_only=True,
