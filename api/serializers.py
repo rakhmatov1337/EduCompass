@@ -152,13 +152,9 @@ class CourseEnrollmentStudentSerializer(serializers.ModelSerializer):
 
 
 class CourseSerializer(serializers.ModelSerializer):
-
-    # — Computed read-only fields —
     final_price = serializers.DecimalField(
         read_only=True, max_digits=10, decimal_places=2)
     available_places = serializers.IntegerField(read_only=True)
-
-    # — Read-only “display” fields —
     days = serializers.SerializerMethodField()
     branch_name = serializers.SerializerMethodField()
     category_name = serializers.SerializerMethodField()
@@ -175,8 +171,16 @@ class CourseSerializer(serializers.ModelSerializer):
     telegram_link = serializers.SerializerMethodField()
     google_map = serializers.SerializerMethodField()
     yandex_map = serializers.SerializerMethodField()
+    branch_id = serializers.IntegerField()
+    category_id = serializers.IntegerField()
+    teacher_id = serializers.IntegerField()
 
     # — Prefetched enrollments —
+    days = serializers.CharField(
+        write_only=True,
+        required=False,
+        help_text='Comma-separated days, e.g. "Sun,Sat,Fri"'
+    )
     students = CourseEnrollmentStudentSerializer(
         many=True,
         read_only=True,
@@ -193,7 +197,7 @@ class CourseSerializer(serializers.ModelSerializer):
             "category", "category_name",
             "level", "level_name",
             "teacher", "teacher_name", "teacher_gender",
-            "days",
+            "days", 'branch_id', 'category_id', 'teacher_id',
 
             # scheduling & pricing
             "start_date", "end_date",
@@ -212,9 +216,15 @@ class CourseSerializer(serializers.ModelSerializer):
             "students",
         ]
 
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and 'days' in data and isinstance(data['days'], str):
+            data = data.copy()
+            data['days_csv'] = data.pop('days')
+        return super().to_internal_value(data)
+
     def get_days(self, obj):
         return [day.name[:3].capitalize() for day in obj.days.all()]
-    
+
     def get_branch_name(self, obj):
         if obj.branch and obj.branch.edu_center:
             return f"{obj.branch.name} – {obj.branch.edu_center.name}"
@@ -277,7 +287,6 @@ class CourseSerializer(serializers.ModelSerializer):
         if obj.branch and obj.branch.latitude and obj.branch.longitude:
             return f"https://yandex.com/maps/?rtext=~{obj.branch.latitude},{obj.branch.longitude}"
         return None
-
 
 
 class EventSerializer(DynamicBranchSerializerMixin, serializers.ModelSerializer):
