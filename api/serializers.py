@@ -152,65 +152,50 @@ class CourseEnrollmentStudentSerializer(serializers.ModelSerializer):
 
 
 class CourseSerializer(serializers.ModelSerializer):
-    # ─── FOREIGN KEYS VIA _id FIELDS ───────────────────────
-    branch_id = serializers.PrimaryKeyRelatedField(
-        source="branch",
-        queryset=Branch.objects.all()
-    )
-    category_id = serializers.PrimaryKeyRelatedField(
-        source="category",
-        queryset=Category.objects.all()
-    )
-    level_id = serializers.PrimaryKeyRelatedField(
-        source="level",
-        queryset=Level.objects.all()
-    )
-    teacher_id = serializers.PrimaryKeyRelatedField(
-        source="teacher",
-        queryset=Teacher.objects.all()
-    )
-
-    # ─── DISPLAY NAMES ─────────────────────────────────────
-    branch_name = serializers.CharField(source="branch.name",        read_only=True)
-    category_name = serializers.CharField(source="category.name",      read_only=True)
-    level_name = serializers.CharField(source="level.name",         read_only=True)
-    teacher_name = serializers.CharField(source="teacher.full_name",  read_only=True)
-    teacher_gender = serializers.CharField(source="teacher.gender",     read_only=True)
-
-    # ─── DAYS: READ AS LIST, WRITE AS CSV ──────────────────
-    days = serializers.SerializerMethodField(read_only=True)
-    days_input = serializers.CharField(
-        write_only=True,
+    # ─── Single days field, **both** read & write ────────────────────────
+    days = serializers.CharField(
         required=False,
         help_text='Comma-separated days, e.g. "Sun,Sat,Fri"'
     )
 
-    # ─── PRICING & AVAILABILITY ───────────────────────────
+    # ─── Your FK _id fields for writes & their read-only names ────────────
+    branch_id = serializers.PrimaryKeyRelatedField(
+        source="branch",   queryset=Branch.objects.all())
+    branch_name = serializers.CharField(source="branch.name",          read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        source="category", queryset=Category.objects.all())
+    category_name = serializers.CharField(source="category.name",        read_only=True)
+    level_id = serializers.PrimaryKeyRelatedField(
+        source="level",    queryset=Level.objects.all())
+    level_name = serializers.CharField(source="level.name",           read_only=True)
+    teacher_id = serializers.PrimaryKeyRelatedField(
+        source="teacher",  queryset=Teacher.objects.all())
+    teacher_name = serializers.CharField(source="teacher.full_name",    read_only=True)
+    teacher_gender = serializers.CharField(
+        source="teacher.gender",       read_only=True)
+
+    # ─── Pricing & computed read-only fields ─────────────────────────────
     final_price = serializers.DecimalField(
         read_only=True, max_digits=10, decimal_places=2)
     available_places = serializers.IntegerField(read_only=True)
-
-    # ─── COMPUTED FIELDS ────────────────────────────────────
     duration_months = serializers.SerializerMethodField()
     work_time = serializers.CharField(source="branch.work_time", read_only=True)
 
-    # ─── MEDIA & MAPS ──────────────────────────────────────
+    # ─── Media & map fields ───────────────────────────────────────────────
     edu_center_logo = serializers.SerializerMethodField()
     cover = serializers.SerializerMethodField()
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
     phone_number = serializers.CharField(
-        source="branch.phone_number",      read_only=True)
+        source="branch.phone_number",                 read_only=True)
     telegram_link = serializers.CharField(
-        source="branch.edu_center.telegram_link", read_only=True)
+        source="branch.edu_center.telegram_link",     read_only=True)
     google_map = serializers.SerializerMethodField()
     yandex_map = serializers.SerializerMethodField()
 
-    # ─── PREFETCHED STUDENTS ───────────────────────────────
+    # ─── Prefetched students ──────────────────────────────────────────────
     students = CourseEnrollmentStudentSerializer(
-        many=True,
-        read_only=True,
-        source="prefetched_enrollments"
+        many=True, read_only=True, source="prefetched_enrollments"
     )
 
     class Meta:
@@ -218,22 +203,19 @@ class CourseSerializer(serializers.ModelSerializer):
         fields = [
             "id", "name", "is_archived",
 
-            # foreign keys by ID
-            "branch_id",   "branch_name",
+            # foreign keys
+            "branch_id", "branch_name",
             "category_id", "category_name",
-            "level_id",    "level_name",
-            "teacher_id",  "teacher_name", "teacher_gender",
+            "level_id", "level_name",
+            "teacher_id", "teacher_name", "teacher_gender",
 
-            # days read/write
-            "days",        # read-only list
-            "days_input",  # write-only CSV
+            # days (string in, list out)
+            "days",
 
             # scheduling & pricing
-            "start_date", "end_date",
-            "total_places", "price", "discount",
-            "start_time", "end_time", "intensive",
-            "final_price", "available_places",
-            "duration_months", "work_time",
+            "start_date", "end_date", "total_places",
+            "price", "discount", "start_time", "end_time", "intensive",
+            "final_price", "available_places", "duration_months", "work_time",
 
             # media & mapping
             "edu_center_logo", "cover",
@@ -246,39 +228,40 @@ class CourseSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id", "branch_name", "category_name", "level_name", "teacher_name",
-            "teacher_gender", "days", "final_price", "available_places",
+            "teacher_gender", "final_price", "available_places",
             "duration_months", "work_time", "edu_center_logo", "cover",
             "latitude", "longitude", "phone_number", "telegram_link",
             "google_map", "yandex_map", "students"
         ]
 
     def to_internal_value(self, data):
-        # Capture incoming CSV string under 'days'
-        if isinstance(data, dict) and 'days' in data and isinstance(data['days'], str):
-            data = data.copy()
-            data['days_input'] = data.pop('days')
+        # If front sends days as a string, leave it here for create/update parsing
         return super().to_internal_value(data)
 
     def create(self, validated_data):
-        # Extract & apply days CSV
-        days_csv = validated_data.pop('days_input', None)
+        days_csv = validated_data.pop("days", None)
         course = super().create(validated_data)
-        if days_csv is not None:
+        if isinstance(days_csv, str):
             names = [d.strip() for d in days_csv.split(',') if d.strip()]
             course.days.set(Day.objects.filter(name__in=names))
         return course
 
     def update(self, instance, validated_data):
-        days_csv = validated_data.pop('days_input', None)
+        days_csv = validated_data.pop("days", None)
         course = super().update(instance, validated_data)
-        if days_csv is not None:
+        if isinstance(days_csv, str):
             names = [d.strip() for d in days_csv.split(',') if d.strip()]
             course.days.set(Day.objects.filter(name__in=names))
         return course
 
-    def get_days(self, obj):
-        return [d.name[:3].capitalize() for d in obj.days.all()]
+    def to_representation(self, instance):
+        # first get the normal dict
+        data = super().to_representation(instance)
+        # then override the 'days' key with a list of names
+        data['days'] = [d.name[:3].capitalize() for d in instance.days.all()]
+        return data
 
+    # ─── other SerializerMethodFields ───────────────────────────────────
     def get_duration_months(self, obj):
         if obj.start_date and obj.end_date:
             d = relativedelta(obj.end_date, obj.start_date)
