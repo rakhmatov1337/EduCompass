@@ -152,39 +152,65 @@ class CourseEnrollmentStudentSerializer(serializers.ModelSerializer):
 
 
 class CourseSerializer(serializers.ModelSerializer):
-    final_price = serializers.DecimalField(
-        read_only=True, max_digits=10, decimal_places=2)
-    available_places = serializers.IntegerField(read_only=True)
-    days = serializers.SerializerMethodField()
-    branch_name = serializers.SerializerMethodField()
-    category_name = serializers.SerializerMethodField()
-    level_name = serializers.SerializerMethodField()
-    teacher_name = serializers.SerializerMethodField()
-    teacher_gender = serializers.SerializerMethodField()
-    duration_months = serializers.SerializerMethodField()
-    work_time = serializers.SerializerMethodField()
-    edu_center_logo = serializers.SerializerMethodField()
-    cover = serializers.SerializerMethodField()
-    latitude = serializers.SerializerMethodField()
-    longitude = serializers.SerializerMethodField()
-    phone_number = serializers.SerializerMethodField()
-    telegram_link = serializers.SerializerMethodField()
-    google_map = serializers.SerializerMethodField()
-    yandex_map = serializers.SerializerMethodField()
-    branch_id = serializers.IntegerField()
-    category_id = serializers.IntegerField()
-    teacher_id = serializers.IntegerField()
-    level_id = serializers.IntegerField()
-    students = CourseEnrollmentStudentSerializer(
-        many=True,
-        read_only=True,
-        source="prefetched_enrollments"
+    # ─── FOREIGN KEYS VIA _id FIELDS ───────────────────────
+    branch_id = serializers.PrimaryKeyRelatedField(
+        source="branch",
+        queryset=Branch.objects.all()
+    )
+    category_id = serializers.PrimaryKeyRelatedField(
+        source="category",
+        queryset=Category.objects.all()
+    )
+    level_id = serializers.PrimaryKeyRelatedField(
+        source="level",
+        queryset=Level.objects.all()
+    )
+    teacher_id = serializers.PrimaryKeyRelatedField(
+        source="teacher",
+        queryset=Teacher.objects.all()
     )
 
+    # ─── DISPLAY NAMES ─────────────────────────────────────
+    branch_name = serializers.CharField(source="branch.name",        read_only=True)
+    category_name = serializers.CharField(source="category.name",      read_only=True)
+    level_name = serializers.CharField(source="level.name",         read_only=True)
+    teacher_name = serializers.CharField(source="teacher.full_name",  read_only=True)
+    teacher_gender = serializers.CharField(source="teacher.gender",     read_only=True)
+
+    # ─── DAYS: READ AS LIST, WRITE AS CSV ──────────────────
+    days = serializers.SerializerMethodField(read_only=True)
     days_input = serializers.CharField(
         write_only=True,
         required=False,
         help_text='Comma-separated days, e.g. "Sun,Sat,Fri"'
+    )
+
+    # ─── PRICING & AVAILABILITY ───────────────────────────
+    final_price = serializers.DecimalField(
+        read_only=True, max_digits=10, decimal_places=2)
+    available_places = serializers.IntegerField(read_only=True)
+
+    # ─── COMPUTED FIELDS ────────────────────────────────────
+    duration_months = serializers.SerializerMethodField()
+    work_time = serializers.CharField(source="branch.work_time", read_only=True)
+
+    # ─── MEDIA & MAPS ──────────────────────────────────────
+    edu_center_logo = serializers.SerializerMethodField()
+    cover = serializers.SerializerMethodField()
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+    phone_number = serializers.CharField(
+        source="branch.phone_number",      read_only=True)
+    telegram_link = serializers.CharField(
+        source="branch.edu_center.telegram_link", read_only=True)
+    google_map = serializers.SerializerMethodField()
+    yandex_map = serializers.SerializerMethodField()
+
+    # ─── PREFETCHED STUDENTS ───────────────────────────────
+    students = CourseEnrollmentStudentSerializer(
+        many=True,
+        read_only=True,
+        source="prefetched_enrollments"
     )
 
     class Meta:
@@ -192,19 +218,22 @@ class CourseSerializer(serializers.ModelSerializer):
         fields = [
             "id", "name", "is_archived",
 
-            # writeable relationships
-            "branch", "branch_name",
-            "category", "category_name",
-            "level", "level_name",
-            "teacher", "teacher_name", "teacher_gender",
-            "days", 'branch_id', 'category_id', 'teacher_id', 'level_id',
+            # foreign keys by ID
+            "branch_id",   "branch_name",
+            "category_id", "category_name",
+            "level_id",    "level_name",
+            "teacher_id",  "teacher_name", "teacher_gender",
+
+            # days read/write
+            "days",        # read-only list
+            "days_input",  # write-only CSV
 
             # scheduling & pricing
             "start_date", "end_date",
             "total_places", "price", "discount",
             "start_time", "end_time", "intensive",
             "final_price", "available_places",
-            "duration_months", "work_time", 'days_input',
+            "duration_months", "work_time",
 
             # media & mapping
             "edu_center_logo", "cover",
@@ -212,17 +241,26 @@ class CourseSerializer(serializers.ModelSerializer):
             "phone_number", "telegram_link",
             "google_map", "yandex_map",
 
-            # students list
+            # students
             "students",
+        ]
+        read_only_fields = [
+            "id", "branch_name", "category_name", "level_name", "teacher_name",
+            "teacher_gender", "days", "final_price", "available_places",
+            "duration_months", "work_time", "edu_center_logo", "cover",
+            "latitude", "longitude", "phone_number", "telegram_link",
+            "google_map", "yandex_map", "students"
         ]
 
     def to_internal_value(self, data):
+        # Capture incoming CSV string under 'days'
         if isinstance(data, dict) and 'days' in data and isinstance(data['days'], str):
             data = data.copy()
             data['days_input'] = data.pop('days')
         return super().to_internal_value(data)
 
     def create(self, validated_data):
+        # Extract & apply days CSV
         days_csv = validated_data.pop('days_input', None)
         course = super().create(validated_data)
         if days_csv is not None:
@@ -239,48 +277,23 @@ class CourseSerializer(serializers.ModelSerializer):
         return course
 
     def get_days(self, obj):
-        return [day.name[:3].capitalize() for day in obj.days.all()]
-
-    def get_branch_name(self, obj):
-        if obj.branch and obj.branch.edu_center:
-            return f"{obj.branch.name} – {obj.branch.edu_center.name}"
-        return None
-
-    def get_category_name(self, obj):
-        return obj.category.name if obj.category else None
-
-    def get_level_name(self, obj):
-        return obj.level.name if obj.level else None
-
-    def get_teacher_name(self, obj):
-        return obj.teacher.full_name if obj.teacher else None
-
-    def get_teacher_gender(self, obj):
-        return obj.teacher.gender if obj.teacher else None
+        return [d.name[:3].capitalize() for d in obj.days.all()]
 
     def get_duration_months(self, obj):
         if obj.start_date and obj.end_date:
             d = relativedelta(obj.end_date, obj.start_date)
-            months = d.years * 12 + d.months + (1 if d.days > 0 else 0)
-            return months
+            return d.years * 12 + d.months + (1 if d.days > 0 else 0)
         return None
-
-    def get_work_time(self, obj):
-        return obj.branch.work_time if obj.branch else None
 
     def get_edu_center_logo(self, obj):
         req = self.context.get("request")
         logo = getattr(obj.branch.edu_center, "logo", None)
-        if logo and req:
-            return req.build_absolute_uri(logo.url)
-        return getattr(logo, "url", None)
+        return req.build_absolute_uri(logo.url) if logo and req else getattr(logo, "url", None)
 
     def get_cover(self, obj):
         req = self.context.get("request")
-        cover = getattr(obj.branch.edu_center, "cover", None)
-        if cover and req:
-            return req.build_absolute_uri(cover.url)
-        return getattr(cover, "url", None)
+        cov = getattr(obj.branch.edu_center, "cover", None)
+        return req.build_absolute_uri(cov.url) if cov and req else getattr(cov, "url", None)
 
     def get_latitude(self, obj):
         return float(obj.branch.latitude) if obj.branch and obj.branch.latitude else None
@@ -288,20 +301,16 @@ class CourseSerializer(serializers.ModelSerializer):
     def get_longitude(self, obj):
         return float(obj.branch.longitude) if obj.branch and obj.branch.longitude else None
 
-    def get_phone_number(self, obj):
-        return obj.branch.phone_number if obj.branch else None
-
-    def get_telegram_link(self, obj):
-        return obj.branch.edu_center.telegram_link if obj.branch and obj.branch.edu_center else None
-
     def get_google_map(self, obj):
-        if obj.branch and obj.branch.latitude and obj.branch.longitude:
-            return f"https://www.google.com/maps/dir/?api=1&destination={obj.branch.latitude},{obj.branch.longitude}"
+        lat, lng = obj.branch.latitude, obj.branch.longitude
+        if lat and lng:
+            return f"https://www.google.com/maps/dir/?api=1&destination={lat},{lng}"
         return None
 
     def get_yandex_map(self, obj):
-        if obj.branch and obj.branch.latitude and obj.branch.longitude:
-            return f"https://yandex.com/maps/?rtext=~{obj.branch.latitude},{obj.branch.longitude}"
+        lat, lng = obj.branch.latitude, obj.branch.longitude
+        if lat and lng:
+            return f"https://yandex.com/maps/?rtext=~{lat},{lng}"
         return None
 
 
