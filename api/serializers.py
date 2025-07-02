@@ -181,6 +181,12 @@ class CourseSerializer(serializers.ModelSerializer):
         source="prefetched_enrollments"
     )
 
+    days_input = serializers.CharField(
+        write_only=True,
+        required=False,
+        help_text='Comma-separated days, e.g. "Sun,Sat,Fri"'
+    )
+
     class Meta:
         model = Course
         fields = [
@@ -213,8 +219,24 @@ class CourseSerializer(serializers.ModelSerializer):
     def to_internal_value(self, data):
         if isinstance(data, dict) and 'days' in data and isinstance(data['days'], str):
             data = data.copy()
-            data['days_csv'] = data.pop('days')
+            data['days_input'] = data.pop('days')
         return super().to_internal_value(data)
+
+    def create(self, validated_data):
+        days_csv = validated_data.pop('days_input', None)
+        course = super().create(validated_data)
+        if days_csv is not None:
+            names = [d.strip() for d in days_csv.split(',') if d.strip()]
+            course.days.set(Day.objects.filter(name__in=names))
+        return course
+
+    def update(self, instance, validated_data):
+        days_csv = validated_data.pop('days_input', None)
+        course = super().update(instance, validated_data)
+        if days_csv is not None:
+            names = [d.strip() for d in days_csv.split(',') if d.strip()]
+            course.days.set(Day.objects.filter(name__in=names))
+        return course
 
     def get_days(self, obj):
         return [day.name[:3].capitalize() for day in obj.days.all()]
