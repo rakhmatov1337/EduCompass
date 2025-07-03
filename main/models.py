@@ -18,13 +18,14 @@ class EduType(models.Model):
 
 
 class Category(models.Model):
-    name = models.CharField(max_length=255, unique=True)
-    icon = models.ImageField(
-        upload_to="category_icons/",
-        blank=True,
-        null=True,
-        help_text="Category icon (e.g. 64×64 PNG)"
+    name = models.CharField(max_length=255)
+    icon_class = models.CharField(
+        max_length=100,
+        blank=True
     )
+
+    class Meta:
+        ordering = ["name"]
 
     def __str__(self):
         return self.name

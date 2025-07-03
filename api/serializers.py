@@ -93,7 +93,7 @@ class EduTypeSerializer(serializers.ModelSerializer):
 
 class LevelSerializer(serializers.ModelSerializer):
     category_id = serializers.PrimaryKeyRelatedField(
-        source='category',
+        source="category",
         queryset=Category.objects.all(),
         write_only=True
     )
@@ -101,31 +101,24 @@ class LevelSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Level
-        fields = ['id', 'name', 'category_id', 'category']
+        fields = ["id", "name", "category_id", "category"]
 
     def get_category(self, obj):
         if not obj.category:
             return None
-        request = self.context.get("request")
-        icon_url = (
-            request.build_absolute_uri(obj.category.icon.url)
-            if obj.category.icon and request
-            else None
-        )
         return {
-            'id':   obj.category.id,
-            'name': obj.category.name,
-            'icon': icon_url
+            "id":         obj.category.id,
+            "name":       obj.category.name,
+            "icon_class": obj.category.icon_class,
         }
 
 
 class CategorySerializer(serializers.ModelSerializer):
     levels = LevelSerializer(many=True, read_only=True)
-    icon = serializers.ImageField(read_only=True)
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'icon', 'levels']
+        fields = ["id", "name", "icon_class", "levels"]
 
 
 class DaySerializer(serializers.ModelSerializer):
