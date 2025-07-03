@@ -459,5 +459,5 @@ class CancelEnrollmentSerializer(serializers.Serializer):
 class BannerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Banner
-        fields = ["id", "image", "language_code"]
+        fields = ["id", "image_uz", "image_en", "image_ru"]
         read_only_fields = ["id"]

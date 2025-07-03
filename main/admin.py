@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .models import (Branch, Category, Course, Day, EducationCenter, EduType,
-                     Enrollment, Event, Level, Teacher)
+                     Enrollment, Event, Level, Teacher, Banner)
 
 # Register your models here.
 
@@ -15,3 +15,4 @@ admin.site.register(Course)
 admin.site.register(Level)
 admin.site.register(Event)
 admin.site.register(Enrollment)
+admin.site.register(Banner)

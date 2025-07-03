@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "drf_yasg",
     'django_quill',
+    "modeltranslation",
     # local apps
     "accounts",
     "main",
@@ -71,6 +72,21 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
+
+
+LANGUAGES = [
+    ("uz", "Uzbek"),
+    ("en", "English"),
+    ("ru", "Russian"),
+]
+
+MODELTRANSLATION_DEFAULT_LANGUAGE = "uz"
+MODELTRANSLATION_LANGUAGES = ["uz", "en", "ru"]
+
+MIDDLEWARE.insert(
+    MIDDLEWARE.index("django.middleware.common.CommonMiddleware") + 1,
+    "django.middleware.locale.LocaleMiddleware",
+)
 
 INTERNAL_IPS = [
     "127.0.0.1",

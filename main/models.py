@@ -238,19 +238,14 @@ class Course(models.Model):
 
 
 class Banner(models.Model):
-    LANGUAGE_CHOICES = [
-        ("uz", "Uzbek"),
-        ("en", "English"),
-        ("ru", "Russian"),
-    ]
-
-    image = models.ImageField(upload_to="banners/")
-    language_code = models.CharField(
-        max_length=10, choices=LANGUAGE_CHOICES, default="uz"
-    )
+    # Har bir til uchun alohida ustun
+    image_uz = models.ImageField(upload_to="banners/uz/")
+    image_en = models.ImageField(upload_to="banners/en/")
+    image_ru = models.ImageField(upload_to="banners/ru/")
 
     def __str__(self):
-        return f"Banner ({self.language_code})"
+        return f"Banner #{self.pk}"
+
 
 
 class Enrollment(models.Model):

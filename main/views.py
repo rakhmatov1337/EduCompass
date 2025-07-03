@@ -60,11 +60,11 @@ class EduTypeViewSet(viewsets.ModelViewSet):
         operation_summary="Create a new category (Superuser only)", tags=["Category"]
     ),
 )
-
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsSuperUserOrReadOnly]
+
 
 @method_decorator(
     name="list",
@@ -263,7 +263,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             )
         )
         return qs
-
 
     @action(detail=True, methods=["post"], serializer_class=EmptySerializer)
     def apply(self, request, pk=None):
