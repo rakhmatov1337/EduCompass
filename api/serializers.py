@@ -152,7 +152,6 @@ class CourseEnrollmentStudentSerializer(serializers.ModelSerializer):
 
 
 class CourseSerializer(serializers.ModelSerializer):
-    # ─── Single days field, **both** read & write ────────────────────────
     days = serializers.CharField(
         required=False,
         help_text='Comma-separated days, e.g. "Sun,Sat,Fri"'
@@ -192,6 +191,7 @@ class CourseSerializer(serializers.ModelSerializer):
         source="branch.edu_center.telegram_link",     read_only=True)
     google_map = serializers.SerializerMethodField()
     yandex_map = serializers.SerializerMethodField()
+    
 
     # ─── Prefetched students ──────────────────────────────────────────────
     students = CourseEnrollmentStudentSerializer(
@@ -202,6 +202,8 @@ class CourseSerializer(serializers.ModelSerializer):
         model = Course
         fields = [
             "id", "name", "is_archived",
+
+            
 
             # foreign keys
             "branch_id", "branch_name",
@@ -234,31 +236,38 @@ class CourseSerializer(serializers.ModelSerializer):
             "google_map", "yandex_map", "students"
         ]
 
-    def to_internal_value(self, data):
-        # If front sends days as a string, leave it here for create/update parsing
-        return super().to_internal_value(data)
+    def _abbr_to_value(self):
+        return {
+            label[:3].capitalize(): value
+            for value, label in Day.DayChoices.choices
+        }
 
     def create(self, validated_data):
         days_csv = validated_data.pop("days", None)
         course = super().create(validated_data)
         if isinstance(days_csv, str):
-            names = [d.strip() for d in days_csv.split(',') if d.strip()]
-            course.days.set(Day.objects.filter(name__in=names))
+            mapping = self._abbr_to_value()
+            abbrs = [d.strip() for d in days_csv.split(",") if d.strip()]
+            vals = [mapping[a] for a in abbrs if a in mapping]
+            course.days.set(Day.objects.filter(name__in=vals))
         return course
 
     def update(self, instance, validated_data):
         days_csv = validated_data.pop("days", None)
         course = super().update(instance, validated_data)
         if isinstance(days_csv, str):
-            names = [d.strip() for d in days_csv.split(',') if d.strip()]
-            course.days.set(Day.objects.filter(name__in=names))
+            mapping = self._abbr_to_value()
+            abbrs = [d.strip() for d in days_csv.split(",") if d.strip()]
+            vals = [mapping[a] for a in abbrs if a in mapping]
+            course.days.set(Day.objects.filter(name__in=vals))
         return course
 
     def to_representation(self, instance):
-        # first get the normal dict
         data = super().to_representation(instance)
-        # then override the 'days' key with a list of names
-        data['days'] = [d.name[:3].capitalize() for d in instance.days.all()]
+        data["days"] = [
+            d.get_name_display()[:3].capitalize()
+            for d in instance.days.all()
+        ]
         return data
 
     # ─── other SerializerMethodFields ───────────────────────────────────
