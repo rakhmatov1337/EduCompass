@@ -19,6 +19,12 @@ class EduType(models.Model):
 
 class Category(models.Model):
     name = models.CharField(max_length=255, unique=True)
+    icon = models.ImageField(
+        upload_to="category_icons/",
+        blank=True,
+        null=True,
+        help_text="Category icon (e.g. 64×64 PNG)"
+    )
 
     def __str__(self):
         return self.name

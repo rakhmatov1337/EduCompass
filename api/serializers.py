@@ -104,18 +104,28 @@ class LevelSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'category_id', 'category']
 
     def get_category(self, obj):
+        if not obj.category:
+            return None
+        request = self.context.get("request")
+        icon_url = (
+            request.build_absolute_uri(obj.category.icon.url)
+            if obj.category.icon and request
+            else None
+        )
         return {
             'id':   obj.category.id,
-            'name': obj.category.name
-        } if obj.category else None
+            'name': obj.category.name,
+            'icon': icon_url
+        }
 
 
 class CategorySerializer(serializers.ModelSerializer):
     levels = LevelSerializer(many=True, read_only=True)
+    icon = serializers.ImageField(read_only=True)
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'levels']
+        fields = ['id', 'name', 'icon', 'levels']
 
 
 class DaySerializer(serializers.ModelSerializer):
