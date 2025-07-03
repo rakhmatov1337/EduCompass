@@ -1,7 +1,4 @@
-# api/urls.py
-
 from django.urls import path
-from djoser.views import UserViewSet
 from rest_framework_nested import routers
 from rest_framework_simplejwt.views import (TokenBlacklistView,
                                             TokenObtainPairView,
@@ -9,11 +6,11 @@ from rest_framework_simplejwt.views import (TokenBlacklistView,
 
 from accounts.views import (BranchViewSet, CurrentUserRetrieveUpdateView,
                             EduCenterCreateView, EduCenterViewSet, LikeViewSet,
-                            MyCoursesView, RegisterView, ViewViewSet)
+                            RegisterView, ViewViewSet)
 from main.views import (AppliedStudentViewSet, CategoryViewSet,
                         CourseFilterSchemaView, CourseViewSet, DayViewSet,
                         EduTypeViewSet, EventFilterSchemaView, EventViewSet,
-                        LevelViewSet, TeacherViewSet)
+                        LevelViewSet, TeacherViewSet, BannerViewSet)
 from quiz.views import (
     QuizViewSet, QuestionViewSet, AnswerViewSet,
     UserQuizResultViewSet, UserLevelProgressViewSet, QuizFilterSchemaView
@@ -30,6 +27,7 @@ router.register("courses", CourseViewSet, basename="courses")
 router.register("edu-centers", EduCenterViewSet, basename="edu-centers")
 router.register("events", EventViewSet, basename="event")
 router.register("applied-students", AppliedStudentViewSet, basename="applied-students")
+router.register(r"banners", BannerViewSet, basename="banner")
 
 # quiz routers
 
@@ -39,7 +37,7 @@ router.register(r'answers', AnswerViewSet, basename='answer')
 router.register(r'results', UserQuizResultViewSet, basename='results')
 router.register(r'progress', UserLevelProgressViewSet, basename='progress')
 
-edu_center_router = routers.NestedDefaultRouter(
+edu_center_router = routers.NestedSimpleRouter(
     router, r"edu-centers", lookup="edu_center"
 )
 edu_center_router.register("likes", LikeViewSet, basename="edu-center-likes")

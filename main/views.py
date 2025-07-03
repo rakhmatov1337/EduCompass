@@ -12,7 +12,6 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from accounts.serializers import EmptySerializer, MyCourseSerializer
 from accounts.permissions import IsEduCenter
 from api.permissions import IsSuperUserOrReadOnly
@@ -22,11 +21,10 @@ from api.permissions import IsEduCenterBranchOrReadOnly, IsSuperUserOrReadOnly
 from api.serializers import (AppliedStudentSerializer, CategorySerializer,
                              CourseSerializer, DaySerializer,
                              EduTypeSerializer, EventSerializer,
-                             LevelSerializer, TeacherSerializer, UnitSerializer, QuizTypeSerializer,
-                             QuizSerializer, QuestionSerializer, AnswerSerializer, QuizSubmitSerializer, QuestionDetailSerializer, SingleAnswerSubmissionSerializer,
-                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer)
+                             LevelSerializer, TeacherSerializer,
+                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer, BannerSerializer)
 from main.models import (Category, Course, Day, EduType, Enrollment, Event,
-                         Level, Teacher, Unit, QuizType, Quiz, Question, Answer)
+                         Level, Teacher, Banner)
 
 # ─── EduType / Category / Level / Day ─────────────────────────────────────
 
@@ -538,123 +536,7 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(out.data, status=status.HTTP_200_OK)
 
 
-# Quiz viewsets
-
-
-class UnitViewSet(viewsets.ModelViewSet):
-    queryset = Unit.objects.all()
-    serializer_class = UnitSerializer
-    permission_classes = [IsSuperUserOrReadOnly]
-
-
-class QuizTypeViewSet(viewsets.ModelViewSet):
-    queryset = QuizType.objects.all()
-    serializer_class = QuizTypeSerializer
-    permission_classes = [IsSuperUserOrReadOnly]
-
-
-class QuizViewSet(viewsets.ModelViewSet):
-    queryset = Quiz.objects.all()
-    serializer_class = QuizSerializer
-    permission_classes = [IsSuperUserOrReadOnly]
-
-    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
-    def questions(self, request, pk=None):
-        """
-        GET /api/quizzes/{pk}/questions/
-        — quizning barcha savollarini va mumkin bo‘lgan javoblarini qaytaradi.
-        """
-        quiz = self.get_object()
-        qs = quiz.questions.select_related().all()
-        data = []
-        for q in qs:
-            data.append({
-                'id': q.id,
-                'text': q.text,
-                'choices': [
-                    {'id': a.id, 'text': a.text}
-                    for a in q.answers.all()
-                ]
-            })
-        return Response(data)
-
-    @action(
-        detail=True,
-        methods=['post'],
-        permission_classes=[IsAuthenticated],
-        serializer_class=QuizSubmitSerializer,
-    )
-    def submit(self, request, pk=None):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        answers = serializer.validated_data['answers']
-        quiz = self.get_object()
-        total = quiz.questions.count()
-        correct = 0
-        detail = []
-        for item in answers:
-            qid = item['question']
-            aid = item['answer']
-            try:
-                a = quiz.questions.get(pk=qid).answers.get(pk=aid)
-            except:
-                continue
-            is_corr = a.correct
-            detail.append({
-                'question': qid,
-                'answer':   aid,
-                'correct':  is_corr
-            })
-            if is_corr:
-                correct += 1
-
-        return Response({
-            'total': total,
-            'correct': correct,
-            'detail': detail,
-            'percent': round(correct/total*100, 2)
-        })
-
-
-class QuestionViewSet(viewsets.ModelViewSet):
-    queryset = Question.objects.select_related('quiz')
-    serializer_class = QuestionSerializer
-    permission_classes = [IsSuperUserOrReadOnly]
-
-    def get_serializer_class(self):
-        if self.action == 'retrieve':
-            return QuestionDetailSerializer
-        return super().get_serializer_class()
-
-    @action(
-        detail=True,
-        methods=['post'],
-        permission_classes=[IsAuthenticated],
-        serializer_class=SingleAnswerSubmissionSerializer,
-        url_path='submit-answer'
-    )
-    def submit_answer(self, request, pk=None):
-        question = self.get_object()
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        ans_id = serializer.validated_data['answer']
-
-        try:
-            ans = question.answers.get(pk=ans_id)
-        except Answer.DoesNotExist:
-            return Response(
-                {'detail': 'Invalid answer id for this question.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        return Response({
-            'question': question.id,
-            'selected_answer': ans.id,
-            'correct': ans.correct
-        })
-
-
-class AnswerViewSet(viewsets.ModelViewSet):
-    queryset = Answer.objects.select_related('question')
-    serializer_class = AnswerSerializer
+class BannerViewSet(viewsets.ModelViewSet):
+    queryset = Banner.objects.all()
+    serializer_class = BannerSerializer
     permission_classes = [IsSuperUserOrReadOnly]

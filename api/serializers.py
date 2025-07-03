@@ -6,7 +6,7 @@ from rest_framework import serializers
 
 from main.models import (Branch, Category, Course, Day, EducationCenter,
                          EduType, Enrollment, Event, Level, Like, Teacher,
-                         View, Unit, QuizType, Quiz, Question, Answer)
+                         View, Banner)
 
 
 class DynamicBranchSerializerMixin:
@@ -191,7 +191,6 @@ class CourseSerializer(serializers.ModelSerializer):
         source="branch.edu_center.telegram_link",     read_only=True)
     google_map = serializers.SerializerMethodField()
     yandex_map = serializers.SerializerMethodField()
-    
 
     # ─── Prefetched students ──────────────────────────────────────────────
     students = CourseEnrollmentStudentSerializer(
@@ -203,7 +202,7 @@ class CourseSerializer(serializers.ModelSerializer):
         fields = [
             "id", "name", "is_archived",
 
-            
+
 
             # foreign keys
             "branch_id", "branch_name",
@@ -457,65 +456,8 @@ class CancelEnrollmentSerializer(serializers.Serializer):
     )
 
 
-class UnitSerializer(serializers.ModelSerializer):
+class BannerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Unit
-        fields = ['id', 'number', 'title', 'description', 'created_at', 'updated_at']
-
-
-class QuizTypeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = QuizType
-        fields = ['id', 'name', 'description', 'created_at', 'updated_at']
-
-
-class QuizSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Quiz
-        fields = [
-            'id', 'unit', 'quiz_type', 'name', 'topic',
-            'description', 'points', 'show_select',
-            'audio', 'image'
-        ]
-
-
-class QuestionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Question
-        fields = ['id', 'quiz', 'position', 'text', 'end_text']
-
-
-class AnswerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Answer
-        fields = ['id', 'question', 'position', 'text', 'correct']
-
-
-class AnswerSubmissionSerializer(serializers.Serializer):
-    question = serializers.IntegerField()
-    answer = serializers.IntegerField()
-
-
-class QuizSubmitSerializer(serializers.Serializer):
-    answers = AnswerSubmissionSerializer(
-        many=True,
-        help_text="List of {question: int, answer: int}"
-    )
-
-
-class AnswerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Answer
-        fields = ['id', 'position', 'text']
-
-
-class QuestionDetailSerializer(serializers.ModelSerializer):
-    answers = AnswerSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Question
-        fields = ['id', 'quiz', 'position', 'text', 'end_text', 'answers']
-
-
-class SingleAnswerSubmissionSerializer(serializers.Serializer):
-    answer = serializers.IntegerField()
+        model = Banner
+        fields = ["id", "image", "language_code"]
+        read_only_fields = ["id"]
