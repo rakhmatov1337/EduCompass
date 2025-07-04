@@ -1,172 +1,166 @@
-from rest_framework import viewsets, status, filters
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
+import random
+
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, generics, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.paginations import DefaultPagination
-from .models import Quiz, Question, Answer, UserQuizResult, UserLevelProgress
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
+from .models import TestAttempt, UserLevelProgress
 from .serializers import (
-    QuizSerializer, QuestionSerializer, AnswerSerializer,
-    QuizSubmissionSerializer, UserQuizResultSerializer,
-    UserLevelProgressSerializer
+    QuestionSerializer, TestSubmissionSerializer,
+    TestResultSerializer, LevelProgressSerializer
 )
+from main.models import Level
+
+QUESTIONS_PER_TEST = 20
 
 
-class QuizViewSet(viewsets.ModelViewSet):
+class LevelQuestionView(generics.ListAPIView):
     """
-    List / Retrieve / Create / Update / Destroy for Quiz.
-    N+1-free: prefetches questions + answers, select_related level.
-    Supports filtering by level and type, searching by name, and ordering.
-    """
-    serializer_class = QuizSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    pagination_class = DefaultPagination
-
-    filter_backends = [DjangoFilterBackend,
-                       filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['level', 'type']
-    search_fields = ['name']
-    ordering_fields = ['level__name', 'name']
-    ordering = ['level__name', 'name']
-
-    def get_queryset(self):
-        # select the FK 'level', prefetch all questions and their answers in two queries
-        return (
-            Quiz.objects
-                .all()
-                .select_related('level')
-                .prefetch_related('questions__answers')
-        )
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
-    def submit(self, request, pk=None):
-        quiz = self.get_object()
-        sub_ser = QuizSubmissionSerializer(data=request.data)
-        sub_ser.is_valid(raise_exception=True)
-
-        # Calculate score
-        total_questions = quiz.questions.count()
-        correct_count = 0
-        # Because we prefetched questions__answers above, these lookups hit the cache
-        for item in sub_ser.validated_data['answers']:
-            try:
-                q = next(q for q in quiz.questions.all() if q.id == item['question'])
-                a = next(a for a in q.answers.all() if a.id == item['answer'])
-                if a.correct:
-                    correct_count += 1
-            except StopIteration:
-                continue
-
-        # Save result
-        result_obj, _ = UserQuizResult.objects.update_or_create(
-            user=request.user,
-            quiz=quiz,
-            defaults={
-                'correct_count': total_questions and correct_count or 0,
-                'total_questions': total_questions
-            }
-        )
-
-        # Update level progress
-        progress_obj, _ = UserLevelProgress.objects.get_or_create(
-            user=request.user,
-            level=quiz.level,
-            defaults={'passed_quizzes': 0, 'total_quizzes': 0}
-        )
-        progress_obj.record_result(result_obj)
-
-        out_ser = UserQuizResultSerializer(result_obj, context={'request': request})
-        return Response(out_ser.data, status=status.HTTP_200_OK)
-
-
-class QuestionViewSet(viewsets.ModelViewSet):
-    """
-    CRUD for Questions.
-    N+1-free: select_related quiz, prefetch answers.
-    Supports filtering by quiz, searching by text, ordering by position.
+    GET /api/levels/{level_id}/questions/  —  random 20 savolni qaytaradi
     """
     serializer_class = QuestionSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-    filter_backends = [DjangoFilterBackend,
-                       filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['quiz']
-    search_fields = ['text']
-    ordering_fields = ['position']
-    ordering = ['position']
+    @swagger_auto_schema(
+        operation_summary="Get random questions for a level",
+        operation_description="Returns up to 20 random questions for the specified level.",
+        responses={200: QuestionSerializer(many=True)}
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
-        return (
-            Question.objects
-            .all()
-            .select_related('quiz')
-            .prefetch_related('answers')
-        )
+        level = get_object_or_404(Level, pk=self.kwargs["level_id"])
+        qs = list(level.questions.prefetch_related("answers").all())
+        return random.sample(qs, min(len(qs), QUESTIONS_PER_TEST))
 
 
-class AnswerViewSet(viewsets.ModelViewSet):
+class LevelTestView(generics.GenericAPIView):
     """
-    CRUD for Answers.
-    N+1-free: select_related question.
-    Supports filtering by question, searching by text, ordering by position.
+    POST /api/levels/{level_id}/submit/  — test javoblarini qabul qiladi va natija beradi
     """
-    serializer_class = AnswerSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-    filter_backends = [DjangoFilterBackend,
-                       filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['question']
-    search_fields = ['text']
-    ordering_fields = ['position']
-    ordering = ['position']
-
-    def get_queryset(self):
-        return Answer.objects.all().select_related('question')
-
-
-class UserQuizResultViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    Read-only listing of the current user's quiz results.
-    N+1-free: select_related quiz + level.
-    Can optionally be filtered by quiz.
-    """
-    serializer_class = UserQuizResultSerializer
     permission_classes = [IsAuthenticated]
+    serializer_class = TestSubmissionSerializer
 
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['quiz']
+    @swagger_auto_schema(
+        operation_summary="Submit answers for a level test",
+        operation_description="Submit answers for a test. Returns the result and updates user progress.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'answers': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'question': openapi.Schema(type=openapi.TYPE_INTEGER, description='Question ID'),
+                            'answer': openapi.Schema(type=openapi.TYPE_INTEGER, description='Answer ID'),
+                        },
+                        required=['question', 'answer'],
+                    ),
+                    example=[
+                        {"question": 12, "answer": 45},
+                        {"question": 13, "answer": 47},
+                        {"question": 14, "answer": 52}
+                    ]
+                )
+            },
+            required=['answers'],
+            example={
+                "answers": [
+                    {"question": 12, "answer": 45},
+                    {"question": 13, "answer": 47},
+                    {"question": 14, "answer": 52}
+                ]
+            }
+        ),
+        responses={200: TestResultSerializer}
+    )
+    def post(self, request, level_id):
+        level = get_object_or_404(Level, pk=level_id)
+        sub_ser = self.get_serializer(data=request.data)
+        sub_ser.is_valid(raise_exception=True)
 
-    def get_queryset(self):
-        return (
-            UserQuizResult.objects
-            .filter(user=self.request.user)
-            .select_related('quiz', 'quiz__level')
+        answers = sub_ser.validated_data["answers"]
+        questions = {q.id: q for q in level.questions.prefetch_related("answers").all()}
+        correct = 0
+        for item in answers:
+            q = questions.get(item.get("question"))
+            if not q:
+                continue
+            chosen = next((a for a in q.answers.all()
+                          if a.id == item.get("answer")), None)
+            if chosen and chosen.correct:
+                correct += 1
+
+        total = len(answers)
+        pct = (correct / total) * 100 if total else 0
+
+        attempt = TestAttempt.objects.create(
+            user=request.user,
+            level=level,
+            correct_count=correct,
+            total_questions=total,
+            percent=pct
         )
 
+        prog, _ = UserLevelProgress.objects.get_or_create(
+            user=request.user, level=level)
+        prog.record(attempt)
 
-class UserLevelProgressViewSet(viewsets.ReadOnlyModelViewSet):
+        out = TestResultSerializer(attempt, context={"request": request})
+        return Response(out.data, status=status.HTTP_200_OK)
+
+
+class LevelProgressView(generics.RetrieveAPIView):
     """
-    Read-only listing of the current user's level progress.
-    N+1-free: select_related level.
+    GET /api/levels/{level_id}/progress/ — foydalanuvchi progress va foiz
     """
-    serializer_class = UserLevelProgressSerializer
     permission_classes = [IsAuthenticated]
+    serializer_class = LevelProgressSerializer
 
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['level']
+    @swagger_auto_schema(
+        operation_summary="Get user progress for a level",
+        operation_description="Returns the user's progress and percentage for the specified level.",
+        responses={200: LevelProgressSerializer}
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
-    def get_queryset(self):
-        return (
-            UserLevelProgress.objects
-            .filter(user=self.request.user)
-            .select_related('level')
-        )
+    def get_object(self):
+        level = get_object_or_404(Level, pk=self.kwargs["level_id"])
+        prog, _ = UserLevelProgress.objects.get_or_create(
+            user=self.request.user, level=level)
+        return prog
 
 
 class QuizFilterSchemaView(APIView):
 
+    @swagger_auto_schema(
+        operation_summary="Quiz filter schema",
+        operation_description="Returns available filters for quizzes.",
+        responses={200: openapi.Response(
+            description="Filter schema",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "level": openapi.Schema(type=openapi.TYPE_STRING),
+                    "level_name": openapi.Schema(type=openapi.TYPE_STRING),
+                    "type": openapi.Schema(type=openapi.TYPE_STRING),
+                    "search": openapi.Schema(type=openapi.TYPE_STRING),
+                    "ordering": openapi.Schema(type=openapi.TYPE_STRING),
+                    "page": openapi.Schema(type=openapi.TYPE_STRING),
+                }
+            )
+        )}
+    )
     def get(self, request):
         return Response({
             "level":       "integer: filter by level ID",

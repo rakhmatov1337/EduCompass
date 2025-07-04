@@ -429,6 +429,9 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ["-applied_at"]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Enrollment.objects.none()  # Swagger uchun bo‘sh queryset qaytaradi
+
         user = self.request.user
         qs = Enrollment.objects.select_related(
             "user",
@@ -436,13 +439,19 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
             "course__branch",
             "course__branch__edu_center"
         )
+
+        if not user.is_authenticated:
+            return qs.none()
+
         if user.role == Enrollment.Status.PENDING:
             return qs.filter(status=Enrollment.Status.PENDING)
         if user.role == "EDU_CENTER":
             return qs.filter(course__branch__edu_center__user=user)
         if user.role == "BRANCH":
             return qs.filter(course__branch__admins=user)
+
         return qs.none()
+
 
     @action(
         detail=False,

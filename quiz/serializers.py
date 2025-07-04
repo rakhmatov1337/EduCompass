@@ -1,14 +1,12 @@
+# api/serializers.py
 from rest_framework import serializers
-from .models import (
-    Quiz, Question, Answer,
-    UserQuizResult, UserLevelProgress
-)
+from .models import Question, Answer, TestAttempt, UserLevelProgress
 
 
 class AnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Answer
-        fields = ['id', 'text', 'correct', 'position']
+        fields = ["id", "text"]
 
 
 class QuestionSerializer(serializers.ModelSerializer):
@@ -16,51 +14,27 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Question
-        fields = ['id', 'quiz', 'position', 'text', 'answers']
+        fields = ["id", "text", "answers"]
 
 
-class QuizSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True, read_only=True)
+class TestSubmissionSerializer(serializers.Serializer):
+    # client yuboradi: question ID va tanlangan answer ID
+    answers = serializers.ListSerializer(
+        child=serializers.DictField(child=serializers.IntegerField()),
+        allow_empty=False
+    )
 
+
+class TestResultSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Quiz
-        fields = [
-            'id', 'name', 'description', 'level',
-            'type', 'audio', 'image', 'questions'
-        ]
-        read_only_fields = ['questions']
+        model = TestAttempt
+        fields = ["id", "level", "correct_count",
+                  "total_questions", "percent", "taken_at"]
 
 
-class SubmissionAnswerSerializer(serializers.Serializer):
-    question = serializers.IntegerField()
-    answer = serializers.IntegerField()
-
-
-class QuizSubmissionSerializer(serializers.Serializer):
-    answers = SubmissionAnswerSerializer(many=True)
-
-
-class UserQuizResultSerializer(serializers.ModelSerializer):
+class LevelProgressSerializer(serializers.ModelSerializer):
     percent = serializers.FloatField(read_only=True)
 
     class Meta:
-        model = UserQuizResult
-        fields = [
-            'id', 'user', 'quiz',
-            'correct_count', 'total_questions',
-            'percent', 'taken_at'
-        ]
-        read_only_fields = ['percent', 'taken_at', 'user']
-
-
-class UserLevelProgressSerializer(serializers.ModelSerializer):
-    percent_passed = serializers.FloatField(read_only=True)
-
-    class Meta:
         model = UserLevelProgress
-        fields = [
-            'id', 'user', 'level',
-            'passed_quizzes', 'total_quizzes',
-            'percent_passed', 'last_updated'
-        ]
-        read_only_fields = ['percent_passed', 'last_updated', 'user']
+        fields = ["level", "total_tests", "passed_tests", "percent"]
