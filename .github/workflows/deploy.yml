@@ -18,13 +18,19 @@ jobs:
         with:
           host:     ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }} 
-          # key: ${{ secrets.SERVER_SSH_KEY }}
+          # key:    ${{ secrets.SERVER_SSH_KEY }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port:     22
           script: |
             set -e
             cd /opt/EduCompass
+
+            # Discard any local changes so git pull never fails
+            git reset --hard HEAD
+            git clean -fd
+
             git pull origin main
+
             source venv/bin/activate
             pip install --upgrade pip setuptools wheel
             pip install --no-cache-dir -r requirements.txt
