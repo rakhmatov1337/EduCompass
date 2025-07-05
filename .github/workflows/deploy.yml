@@ -28,5 +28,11 @@ jobs:
             source venv/bin/activate
             pip install --upgrade pip setuptools wheel
             pip install --no-cache-dir -r requirements.txt
+
+            # Fake‐apply the broken quiz migration to sync migration history
+            python manage.py migrate quiz 0002 --fake || true
+
+            # Now apply all remaining migrations normally
             python manage.py migrate
+
             sudo supervisorctl restart educompass
