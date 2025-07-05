@@ -54,28 +54,18 @@ class PackViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        # don’t break swagger generation
-        if getattr(self, 'swagger_fake_view', False):
-            return Pack.objects.none()
-
-        level_id = self.kwargs['level_id']
-        level = get_object_or_404(Level, pk=level_id)
-
-        qs = Pack.objects.filter(level=level) \
-            .annotate(question_count=Count('questions'))
-
-        user = self.request.user
-        if user.is_authenticated:
-            # annotate True if the user has any attempt for this pack
+        level = get_object_or_404(Level, pk=self.kwargs['level_id'])
+        qs = Pack.objects.filter(level=level).annotate(
+            question_count=Count('questions')
+        )
+        if self.request.user.is_authenticated:
             attempted = TestAttempt.objects.filter(
-                user=user,
+                user=self.request.user,
                 pack=OuterRef('pk')
             )
-            qs = qs.annotate(is_used=Exists(attempted))
+            qs = qs.annotate(used=Exists(attempted))
         else:
-            # anon users never “used” any pack
-            qs = qs.annotate(is_used=Value(False, output_field=BooleanField()))
-
+            qs = qs.annotate(used=Value(False, output_field=BooleanField()))
         return qs
 
     @swagger_auto_schema(

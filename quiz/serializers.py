@@ -4,7 +4,7 @@ from .models import Question, Answer, TestAttempt, UserLevelProgress, Pack
 
 class PackSerializer(serializers.ModelSerializer):
     question_count = serializers.IntegerField(read_only=True)
-    is_used = serializers.BooleanField(read_only=True)
+    is_used = serializers.BooleanField(source='used',read_only=True)
 
     class Meta:
         model = Pack
