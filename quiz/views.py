@@ -8,6 +8,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.views import APIView
 
+from django.db.models import Count, OuterRef, Exists, Value, BooleanField
 from .models import TestAttempt, UserLevelProgress, Pack
 from .serializers import (
     QuestionSerializer, TestSubmissionSerializer,
@@ -15,7 +16,6 @@ from .serializers import (
     PackSerializer
 )
 from main.models import Level
-from django.db.models import Count
 
 QUESTIONS_PER_TEST = 20
 QUESTIONS_PER_PACK = 20
