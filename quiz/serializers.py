@@ -1,12 +1,24 @@
-# api/serializers.py
 from rest_framework import serializers
-from .models import Question, Answer, TestAttempt, UserLevelProgress
+from .models import Question, Answer, TestAttempt, UserLevelProgress, Pack
+
+
+class PackSerializer(serializers.ModelSerializer):
+    question_count = serializers.IntegerField(
+        source='questions.count',
+        read_only=True,
+        help_text="Total number of questions in this pack"
+    )
+
+    class Meta:
+        model = Pack
+        fields = ['id', 'title', 'description', 'question_count']
+
 
 
 class AnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Answer
-        fields = ["id", "text"]
+        fields = ["id", "text", "correct"]
 
 
 class QuestionSerializer(serializers.ModelSerializer):
@@ -18,7 +30,6 @@ class QuestionSerializer(serializers.ModelSerializer):
 
 
 class TestSubmissionSerializer(serializers.Serializer):
-    # client yuboradi: question ID va tanlangan answer ID
     answers = serializers.ListSerializer(
         child=serializers.DictField(child=serializers.IntegerField()),
         allow_empty=False
@@ -28,7 +39,7 @@ class TestSubmissionSerializer(serializers.Serializer):
 class TestResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = TestAttempt
-        fields = ["id", "level", "correct_count",
+        fields = ["id", "pack", "correct_count",
                   "total_questions", "percent", "taken_at"]
 
 

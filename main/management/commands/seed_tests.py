@@ -1,75 +1,89 @@
-from django.core.management.base import BaseCommand
-from main.models import Level
-from quiz.models import Question, Answer
 import random
+from django.core.management.base import BaseCommand
+from django.utils.crypto import get_random_string
+from main.models import Level
+from quiz.models import Pack, Question, Answer
 
 
 class Command(BaseCommand):
-    help = "Seed the database with logical English questions (with 4 answers each) for 'Beginner' level"
+    help = (
+        "Seed the database with logical English questions "
+        "(grammar, vocab, preposition) across 2 packs for 'Beginner' level"
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
             '--count',
             type=int,
             default=50,
-            help='Number of questions to create (default: 50)'
+            help='Total number of questions to create (default: 50)'
         )
 
     def handle(self, *args, **options):
         count = options['count']
-
         level = Level.objects.filter(name__iexact="Beginner").first()
         if not level:
             self.stderr.write(self.style.ERROR(
                 "No Level named 'Beginner' found in the database."))
             return
 
-        grammar_templates = [
+        # 1) Create 2 Packs
+        packs = []
+        for i in range(2):
+            pack = Pack.objects.create(
+                level=level,
+                title=f"Pack {i+1}",
+                description=f"Logical questions pack {i+1} for level {level.name}"
+            )
+            packs.append(pack)
+            self.stdout.write(self.style.SUCCESS(
+                f"Created Pack #{pack.id}: {pack.title}"
+            ))
+
+        # 2) Prepare templates
+        grammar = [
             ("She ___ to school every day.", ["go", "goes", "going", "gone"], 1),
             ("They ___ playing football now.", ["is", "are", "was", "be"], 1),
             ("He ___ a doctor.", ["am", "is", "are", "were"], 1),
             ("I ___ tea in the morning.", ["drinks", "drink", "drunk", "drinking"], 1),
             ("We ___ our homework yesterday.", ["do", "did", "done", "doing"], 1),
         ]
-
-        vocab_templates = [
+        vocab = [
             ("What is the synonym of 'happy'?", ["sad", "joyful", "angry", "tired"], 1),
-            ("What is the antonym of 'cold'?", [
-             "freezing", "chilly", "hot", "cool"], 2),
+            ("What is the antonym of 'cold'?", ["freezing", "chilly", "hot", "cool"], 2),
             ("Choose the synonym of 'big'", ["huge", "tiny", "thin", "light"], 0),
         ]
-
-        preposition_templates = [
+        prep = [
             ("I am good ___ math.", ["in", "of", "at", "for"], 2),
             ("The cat is ___ the table.", ["on", "in", "under", "between"], 2),
         ]
+        templates = grammar + vocab + prep
 
-        templates = grammar_templates + vocab_templates + preposition_templates
+        # 3) Build randomized list of exactly count items
+        pool = templates * ((count // len(templates)) + 1)
+        random.shuffle(pool)
+        selected = pool[:count]
 
-        # Repeat templates if needed to reach count
-        full_templates = templates * ((count // len(templates)) + 1)
-        random.shuffle(full_templates)
-        selected_templates = full_templates[:count]
-
-        created_q = 0
-        base_count = Question.objects.filter(level=level).count()
-
-        for i, (q_text, options, correct_idx) in enumerate(selected_templates):
-            question = Question.objects.create(
-                level=level,
-                text=q_text,
-                position=base_count + i + 1
+        # 4) Create questions, round-robin assign to packs
+        for idx, (text, options, correct_idx) in enumerate(selected):
+            pack = packs[idx % 2]
+            position = Question.objects.filter(pack=pack).count() + 1
+            q = Question.objects.create(
+                pack=pack,
+                text=text,
+                position=position
             )
-            for j, opt in enumerate(options):
+            for opt_idx, opt in enumerate(options):
                 Answer.objects.create(
-                    question=question,
+                    question=q,
                     text=opt,
-                    correct=(j == correct_idx)
+                    correct=(opt_idx == correct_idx)
                 )
-            created_q += 1
             self.stdout.write(self.style.SUCCESS(
-                f"Created logical question #{question.id}"))
+                f"[{pack.title}] Created Q#{q.id}: \"{text[:30]}…\""
+            ))
 
         self.stdout.write(self.style.SUCCESS(
-            f"Successfully seeded {created_q} logical questions for level 'Beginner' (ID: {level.id})."
+            f"Successfully seeded {count} logical questions "
+            f"across 2 packs for level '{level.name}' (ID: {level.id})."
         ))

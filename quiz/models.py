@@ -3,16 +3,25 @@ from django.conf import settings
 from main.models import Level
 
 
+class Pack(models.Model):
+    level = models.ForeignKey(Level, on_delete=models.CASCADE, related_name='packs')
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.level.name} – {self.title}"
+
+
 class Question(models.Model):
-    level = models.ForeignKey(Level, on_delete=models.CASCADE, related_name="questions")
+    pack = models.ForeignKey(Pack, on_delete=models.CASCADE, related_name="questions")
     text = models.TextField()
     position = models.PositiveIntegerField(default=1)
 
     class Meta:
-        ordering = ["level", "position"]
+        ordering = ["pack", "position"]
 
     def __str__(self):
-        return f"{self.level.name} Q{self.position}"
+        return f"{self.pack.title} Q{self.position}"
 
 
 class Answer(models.Model):
@@ -30,7 +39,7 @@ class Answer(models.Model):
 
 class TestAttempt(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    level = models.ForeignKey(Level, on_delete=models.CASCADE)
+    pack = models.ForeignKey(Pack, on_delete=models.CASCADE)
     correct_count = models.PositiveIntegerField()
     total_questions = models.PositiveIntegerField()
     percent = models.FloatField()

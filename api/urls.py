@@ -12,8 +12,8 @@ from main.views import (AppliedStudentViewSet, CategoryViewSet,
                         EduTypeViewSet, EventFilterSchemaView, EventViewSet,
                         LevelViewSet, TeacherViewSet, BannerViewSet)
 from quiz.views import (
-    QuizFilterSchemaView, LevelQuestionView, LevelTestView,
-    LevelProgressView
+    QuizFilterSchemaView,
+    LevelProgressView, PackViewSet
 )
 
 router = routers.DefaultRouter()
@@ -30,6 +30,7 @@ router.register("applied-students", AppliedStudentViewSet, basename="applied-stu
 router.register(r"banners", BannerViewSet, basename="banner")
 
 # quiz routers
+router.register(r'levels/(?P<level_id>\d+)/packs', PackViewSet, basename='level-packs')
 
 
 edu_center_router = routers.NestedSimpleRouter(
@@ -66,10 +67,6 @@ urlpatterns = (
             CurrentUserRetrieveUpdateView.as_view(),
             name="auth_current_user",
         ),
-        path("levels/<int:level_id>/questions/",
-             LevelQuestionView.as_view(), name="level-questions"),
-        path("levels/<int:level_id>/submit/",
-             LevelTestView.as_view(),      name="level-submit"),
         path("levels/<int:level_id>/progress/",
              LevelProgressView.as_view(),  name="level-progress"),
     ]
