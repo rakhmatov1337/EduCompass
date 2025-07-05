@@ -7,6 +7,7 @@ class Pack(models.Model):
     level = models.ForeignKey(Level, on_delete=models.CASCADE, related_name='packs')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    is_used = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.level.name} – {self.title}"

@@ -3,15 +3,12 @@ from .models import Question, Answer, TestAttempt, UserLevelProgress, Pack
 
 
 class PackSerializer(serializers.ModelSerializer):
-    question_count = serializers.IntegerField(
-        source='questions.count',
-        read_only=True,
-        help_text="Total number of questions in this pack"
-    )
+    question_count = serializers.IntegerField(read_only=True)
+    is_used = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Pack
-        fields = ['id', 'title', 'description', 'question_count']
+        fields = ['id', 'title', 'description', 'question_count', 'is_used']
 
 
 

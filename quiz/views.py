@@ -45,74 +45,61 @@ class LevelProgressView(generics.RetrieveAPIView):
 
 class PackViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ReadOnly viewset for Packs under a Level.
-
-    list:
-    GET /api/levels/{level_id}/packs/
-
-    retrieve:
-    GET /api/levels/{level_id}/packs/{pk}/
-
-    questions:
-    GET /api/levels/{level_id}/packs/{pk}/questions/
-
-    submit:
-    POST /api/levels/{level_id}/packs/{pk}/submit/
+    list:    GET /api/levels/{level_id}/packs/
+    retrieve:GET /api/levels/{level_id}/packs/{pk}/
+    questions: GET  .../packs/{pk}/questions/
+    submit:    POST .../packs/{pk}/questions/submit/
     """
     serializer_class = PackSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        # Prevent errors during schema generation (swagger_fake_view)
+        # don’t break swagger generation
         if getattr(self, 'swagger_fake_view', False):
             return Pack.objects.none()
 
-        level_id = self.kwargs.get('level_id')
+        level_id = self.kwargs['level_id']
         level = get_object_or_404(Level, pk=level_id)
-        return Pack.objects.filter(level=level).annotate(
-            question_count=Count('questions')
-        )
+
+        qs = Pack.objects.filter(level=level) \
+            .annotate(question_count=Count('questions'))
+
+        user = self.request.user
+        if user.is_authenticated:
+            # annotate True if the user has any attempt for this pack
+            attempted = TestAttempt.objects.filter(
+                user=user,
+                pack=OuterRef('pk')
+            )
+            qs = qs.annotate(is_used=Exists(attempted))
+        else:
+            # anon users never “used” any pack
+            qs = qs.annotate(is_used=Value(False, output_field=BooleanField()))
+
+        return qs
 
     @swagger_auto_schema(
         method='get',
         operation_summary='Get 20 random questions from a pack',
-        operation_description='Returns up to 20 randomly selected questions for the specified pack.',
         responses={200: QuestionSerializer(many=True)}
     )
-    @action(detail=True, methods=['get'], url_path='questions', permission_classes=[IsAuthenticatedOrReadOnly])
+    @action(
+        detail=True,
+        methods=['get'],
+        url_path='questions',
+        permission_classes=[IsAuthenticatedOrReadOnly]
+    )
     def questions(self, request, level_id=None, pk=None):
         pack = get_object_or_404(Pack, pk=pk, level_id=level_id)
-        questions = list(pack.questions.prefetch_related('answers'))
-        selected = random.sample(questions, min(len(questions), QUESTIONS_PER_PACK))
-        serializer = QuestionSerializer(selected, many=True)
-        return Response(serializer.data)
+        items = list(pack.questions.prefetch_related('answers'))
+        sample_qs = random.sample(items, min(len(items), QUESTIONS_PER_PACK))
+        return Response(QuestionSerializer(sample_qs, many=True).data)
 
     @swagger_auto_schema(
         method='post',
         operation_summary='Submit answers for a pack test',
-        operation_description='Accepts an array of {"question": id, "answer": id} objects, computes score, saves attempt, and updates user level progress.',
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'answers': openapi.Schema(
-                    type=openapi.TYPE_ARRAY,
-                    description='List of question-answer mappings',
-                    items=openapi.Schema(
-                        type=openapi.TYPE_OBJECT,
-                        properties={
-                            'question': openapi.Schema(type=openapi.TYPE_INTEGER, description='Question ID'),
-                            'answer': openapi.Schema(type=openapi.TYPE_INTEGER, description='Answer ID'),
-                        },
-                        required=['question', 'answer']
-                    ),
-                    example=[
-                        {'question': 10, 'answer': 42},
-                        {'question': 11, 'answer': 45},
-                    ]
-                )
-            },
-            required=['answers']
-        ),
+        operation_description='Accepts an array of {question: ID, answer: ID}, scores it, saves a TestAttempt, and updates UserLevelProgress.',
+        request_body=TestSubmissionSerializer,
         responses={200: TestResultSerializer}
     )
     @action(
@@ -124,23 +111,21 @@ class PackViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def submit(self, request, level_id=None, pk=None):
         pack = get_object_or_404(Pack, pk=pk, level_id=level_id)
-        sub_ser = self.get_serializer(data=request.data)
-        sub_ser.is_valid(raise_exception=True)
+        ser = self.get_serializer(data=request.data)
+        ser.is_valid(raise_exception=True)
 
-        answers_data = sub_ser.validated_data['answers']
-        # map questions for fast lookup
-        questions_map = {q.id: q for q in pack.questions.prefetch_related('answers')}
+        data = ser.validated_data['answers']
+        questions = {q.id: q for q in pack.questions.prefetch_related('answers')}
         correct = 0
-        for item in answers_data:
-            q = questions_map.get(item.get('question'))
+        for item in data:
+            q = questions.get(item['question'])
             if not q:
                 continue
-            chosen = next((a for a in q.answers.all()
-                          if a.id == item.get('answer')), None)
+            chosen = next((a for a in q.answers.all() if a.id == item['answer']), None)
             if chosen and chosen.correct:
                 correct += 1
 
-        total = len(answers_data)
+        total = len(data)
         percent = (correct / total) * 100 if total else 0
 
         attempt = TestAttempt.objects.create(
@@ -151,14 +136,16 @@ class PackViewSet(viewsets.ReadOnlyModelViewSet):
             percent=percent
         )
 
-        progress, _ = UserLevelProgress.objects.get_or_create(
+        prog, _ = UserLevelProgress.objects.get_or_create(
             user=request.user,
             level=pack.level
         )
-        progress.record(attempt)
+        prog.record(attempt)
 
-        out = TestResultSerializer(attempt, context={'request': request})
-        return Response(out.data, status=status.HTTP_200_OK)
+        return Response(
+            TestResultSerializer(attempt, context={'request': request}).data,
+            status=status.HTTP_200_OK
+        )
 
 
 class QuizFilterSchemaView(APIView):
