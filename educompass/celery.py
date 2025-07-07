@@ -10,3 +10,4 @@ app.autodiscover_tasks()
 
 logging.getLogger("celery.beat").info(
     f"Loaded beat_schedule: {app.conf.beat_schedule!r}")
+print("⏰ Loaded beat_schedule:", app.conf.beat_schedule, flush=True)
