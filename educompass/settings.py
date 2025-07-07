@@ -236,11 +236,12 @@ SWAGGER_USE_COMPAT_RENDERERS = False
 
 
 CELERY_BEAT_SCHEDULE = {
-    "export-monthly-applications": {
+    "export_monthly_applications": {
         "task": "main.tasks.export_monthly_applications_task",
         "schedule": crontab(minute=0, hour=6, day_of_month="1"),
     },
 }
+CELERY_TIMEZONE = "Asia/Tashkent"
 
 CELERY_TIMEZONE = "Asia/Tashkent"
 CELERY_ENABLE_UTC = False
