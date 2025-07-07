@@ -4,7 +4,7 @@ from celery import Celery
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "educompass.settings")
 
-app = Celery("educompass")
+app = Celery("educompass", include=["main.tasks"])
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
