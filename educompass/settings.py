@@ -242,3 +242,33 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 CELERY_TIMEZONE = "Asia/Tashkent"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "formatters": {
+        "simple": {
+            "format": "[%(levelname)s/%(name)s] %(message)s"
+        },
+    },
+    "loggers": {
+        # ensure celery.beat INFO logs go to console
+        "celery.beat": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # optionally enable root celery logs too
+        "celery": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
