@@ -452,7 +452,6 @@ class AppliedStudentViewSet(viewsets.ReadOnlyModelViewSet):
 
         return qs.none()
 
-
     @action(
         detail=False,
         methods=["get"],

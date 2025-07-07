@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+from celery.schedules import crontab
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -232,3 +233,14 @@ DJOSER = {
 CELERY_BROKER_URL = "redis://localhost:6379/1"
 
 SWAGGER_USE_COMPAT_RENDERERS = False
+
+
+CELERY_BEAT_SCHEDULE = {
+    "export-monthly-applications": {
+        "task": "main.tasks.export_monthly_applications_task",
+        "schedule": crontab(minute=0, hour=6, day_of_month="1"),
+    },
+}
+
+CELERY_TIMEZONE = "Asia/Tashkent"
+CELERY_ENABLE_UTC = False

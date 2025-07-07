@@ -4,6 +4,6 @@ from celery import Celery
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "educompass.settings")
 
-celery = Celery("educompass")
-celery.config_from_object("django.conf:settings", namespace="CELERY")
-celery.autodiscover_tasks()
+app = Celery("educompass") 
+app.config_from_object("django.conf:settings", namespace="CELERY")
+app.autodiscover_tasks()
