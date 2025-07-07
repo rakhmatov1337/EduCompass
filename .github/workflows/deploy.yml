@@ -22,6 +22,7 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           port:     22
           script: |
+            git config --global --add safe.directory /opt/EduCompass
             set -e
             cd /opt/EduCompass
 
