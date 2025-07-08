@@ -236,9 +236,9 @@ CELERY_BROKER_URL = "redis://localhost:6379/1"
 SWAGGER_USE_COMPAT_RENDERERS = False
 
 CELERY_BEAT_SCHEDULE = {
-    "export_every_5_seconds": {
+    "export_monthly_applications": {
         "task": "main.tasks.export_monthly_applications_task",
-        "schedule": schedule(run_every=5.0),
+        "schedule": crontab(minute=0, hour=6, day_of_month="1"),
     },
 }
 CELERY_TIMEZONE = "Asia/Tashkent"
