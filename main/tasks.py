@@ -14,9 +14,9 @@ def export_monthly_applications_task():
     out = StringIO()
     management.call_command("export_monthly_applications", stdout=out)
     result = out.getvalue().strip()
-    # natijani ham log qilamiz
+
     logger.info(f"export_monthly_applications command output: {result}")
-    return result  # natijani task return sifatida qaytaramiz
+    return result  
 
 
 
