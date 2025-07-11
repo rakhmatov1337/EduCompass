@@ -6,28 +6,28 @@ from main.models import Course, Day, Event
 
 class DayNameInFilter(filters.BaseInFilter, filters.CharFilter):
     """
-    day parametri ro'yxat (['Mon','Tue']) yoki vergul bilan ajratilgan
-    string ("Mon,Tue") kelsa ham qabul qiladi.
+    Accepts list of day strings or comma-separated string and filters by matching Day names.
     """
 
     def filter(self, qs, value):
-        # value: list yoki string
         if not value:
             return qs
+        values = []
+        # Handle list inputs
         if isinstance(value, (list, tuple)):
-            parts = []
-            for elem in value:
-                if "," in elem:
-                    parts += [p.strip() for p in elem.split(",")]
+            for v in value:
+                # Split comma-separated strings in list
+                if isinstance(v, str) and "," in v:
+                    values.extend([item.strip() for item in v.split(",")])
                 else:
-                    parts.append(elem)
-            value_list = parts
+                    values.append(v)
         else:
-            value_list = [p.strip() for p in value.split(",")]
+            values = [item.strip() for item in value.split(",")]
+        # Normalize codes to first 3 uppercase letters
+        codes = [val.capitalize()[:3].upper() for val in values if val]
         q = Q()
-        for val in value_list:
-            code = val.capitalize()[:3]
-            matched_days = Day.objects.filter(name__startswith=code.upper())
+        for code in codes:
+            matched_days = Day.objects.filter(name__startswith=code)
             q |= Q(days__in=matched_days)
         return qs.filter(q).distinct()
 
@@ -43,24 +43,17 @@ class CourseFilter(filters.FilterSet):
         field_name="teacher__gender", lookup_expr="iexact")
     edu_center_id = filters.NumberFilter(method="filter_by_edu_center")
     category_ids = filters.BaseInFilter(field_name="category__id", lookup_expr="in")
-    day = DayNameInFilter(method="filter", field_name="days__name")
+    day = DayNameInFilter(field_name="days__name")
 
     class Meta:
         model = Course
-        fields = [
-            "price_min", "price_max",
-            "total_places_min", "total_places_max",
-            "teacher_gender",
-            "edu_center_id",
-            "category_ids",
-            "day",
-        ]
+        fields = [] 
 
     def filter_by_edu_center(self, qs, name, value):
         return qs.filter(branch__edu_center__id=value)
 
 
-class NumberInFilter(django_filters.BaseInFilter, django_filters.NumberFilter):
+class NumberInFilter(filters.BaseInFilter, filters.NumberFilter):
     pass
 
 
@@ -68,13 +61,8 @@ class EventFilter(filters.FilterSet):
     start_date = filters.DateFilter(field_name="date", lookup_expr="gte")
     end_date = filters.DateFilter(field_name="date", lookup_expr="lte")
     edu_center_id = NumberInFilter(field_name="edu_center__id", lookup_expr="in")
-    category_id = NumberInFilter(field_name="categories__id", lookup_expr="in")
+    category_ids = NumberInFilter(field_name="categories__id", lookup_expr="in")
 
     class Meta:
         model = Event
-        fields = [
-            "start_date",
-            "end_date",
-            "edu_center_id",
-            "category_ids",
-        ]
+        fields = []  
