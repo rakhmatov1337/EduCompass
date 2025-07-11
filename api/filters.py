@@ -1,87 +1,123 @@
+import json
 from django.db.models import Q
 from django_filters import rest_framework as filters
-from main.models import Course, Event
+from main.models import Course, Event, Day
 
 
-class DayNameInFilter(filters.BaseInFilter, filters.CharFilter):
-    """
-    Accepts list of day strings or comma-separated string and filters by matching Day names.
-    """
+def parse_int_list(raw):
+    if raw is None:
+        return []
+    if isinstance(raw, (list, tuple)):
+        out = []
+        for v in raw:
+            try:
+                out.append(int(v))
+            except (TypeError, ValueError):
+                continue
+        return out
+    s = raw.strip()
+    if s.startswith('[') and s.endswith(']'):
+        try:
+            arr = json.loads(s)
+            return [int(x) for x in arr]
+        except Exception:
+            s = s[1:-1]
+    return [int(x) for x in s.split(',') if x.strip().isdigit()]
 
-    def filter(self, qs, value):
-        if not value:
-            return qs
-        if isinstance(value, (list, tuple)):
-            raw = []
-            for v in value:
-                if isinstance(v, str) and "," in v:
-                    raw += [x.strip() for x in v.split(",")]
-                else:
-                    raw.append(v)
-        else:
-            raw = [x.strip() for x in value.split(",")]
 
-        codes = [v.capitalize()[:3].upper() for v in raw if v]
-        q = Q()
-        for code in codes:
-            q |= Q(days__name__startswith=code)
-        return qs.filter(q).distinct()
+def parse_str_list(raw):
+    if raw is None:
+        return []
+    if isinstance(raw, (list, tuple)):
+        return [str(x) for x in raw if x]
+    s = raw.strip()
+    if s.startswith('[') and s.endswith(']'):
+        try:
+            arr = json.loads(s)
+            return [str(x) for x in arr]
+        except Exception:
+            s = s[1:-1]
+    return [x.strip() for x in s.split(',') if x.strip()]
 
 
 class CourseFilter(filters.FilterSet):
-    price_min = filters.NumberFilter(field_name="price",        lookup_expr="gte")
-    price_max = filters.NumberFilter(field_name="price",        lookup_expr="lte")
+    price_min = filters.NumberFilter(field_name="price", lookup_expr="gte")
+    price_max = filters.NumberFilter(field_name="price", lookup_expr="lte")
     total_places_min = filters.NumberFilter(
         field_name="total_places", lookup_expr="gte")
     total_places_max = filters.NumberFilter(
         field_name="total_places", lookup_expr="lte")
     teacher_gender = filters.CharFilter(
         field_name="teacher__gender", lookup_expr="iexact")
-    edu_center_id = filters.NumberFilter(method="filter_by_edu_center")
-    day = DayNameInFilter(field_name="days__name")
-    category_ids = filters.BaseInFilter(field_name="category__id", lookup_expr="in")
+
+    # hammasi CharFilter qilib qo'ydik, .filter_<name> metodlari bilan
+    category_ids = filters.CharFilter(method="filter_category")
+    edu_center_ids = filters.CharFilter(method="filter_center")
+    day = filters.CharFilter(method="filter_day")
 
     class Meta:
         model = Course
         fields = []
 
-    def filter_by_edu_center(self, qs, name, value):
-        return qs.filter(branch__edu_center__id=value)
+    def filter_category(self, qs, name, raw):
+        ids = parse_int_list(raw)
+        if not ids:
+            return qs
+        filtered = qs.filter(category__id__in=ids)
+        return filtered if filtered.exists() else qs
 
-    def filter_queryset(self, queryset):
-        data = self.form.cleaned_data
-        qs = queryset
+    def filter_center(self, qs, name, raw):
+        ids = parse_int_list(raw)
+        if not ids:
+            return qs
+        filtered = qs.filter(branch__edu_center__id__in=ids)
+        return filtered if filtered.exists() else qs
 
-        # 1) Primary: category_ids
-        cat_vals = data.get('category_ids')
-        if cat_vals:
-            qs = qs.filter(category__id__in=cat_vals)
+    def filter_day(self, qs, name, raw):
+        codes = [v.capitalize()[:3].upper() for v in parse_str_list(raw)]
+        if not codes:
+            return qs
+        q = Q()
+        for c in codes:
+            q |= Q(days__name__startswith=c)
+        filtered = qs.filter(q).distinct()
+        return filtered if filtered.exists() else qs
 
-        # 2) edu_center_id
-        center = data.get('edu_center_id')
-        if center:
-            qs = qs.filter(branch__edu_center__id=center)
+    def filter_queryset(self, qs):
+        params = self.request.query_params
 
-        # 3) All the rest in declaration order
-        for name, filter_obj in self.filters.items():
-            if name in ('category_ids', 'edu_center_id'):
-                continue
+        # 1) Category
+        qs = self.filter_category(qs, 'category_ids', params.get('category_ids'))
 
-            val = data.get(name)
-            if val not in (None, [], ''):
-                qs = filter_obj.filter(qs, val)
+        # 2) Edu center
+        qs = self.filter_center(qs, 'edu_center_ids', params.get('edu_center_ids'))
+
+        # 3) price_min, price_max, total_places_min, total_places_max, teacher_gender
+        for name in (
+            'price_min', 'price_max',
+            'total_places_min', 'total_places_max',
+            'teacher_gender'
+        ):
+            raw = params.get(name)
+            if raw not in (None, '', []):
+                filt = self.filters[name]
+                candidate = filt.filter(qs, raw)
+                if candidate.exists():
+                    qs = candidate
+
+        # 4) day (oxirgi bo‘lsa ham bo‘ladi)
+        raw_day = params.get('day')
+        if raw_day not in (None, '', []):
+            candidate = self.filter_day(qs, 'day', raw_day)
+            if candidate.exists():
+                qs = candidate
 
         return qs.distinct()
 
 
-class NumberInFilter(filters.BaseInFilter, filters.NumberFilter):
-    """Just a plain “in” filter for numbers."""
-    pass
-
-
 class EventFilter(filters.FilterSet):
-    category_ids = NumberInFilter(field_name="categories__id", lookup_expr="in")
-    edu_center_ids = NumberInFilter(field_name="edu_center__id", lookup_expr="in")
+    category_ids = filters.CharFilter(method="filter_category")
+    edu_center_ids = filters.CharFilter(method="filter_center")
     start_date = filters.DateFilter(field_name="date", lookup_expr="gte")
     end_date = filters.DateFilter(field_name="date", lookup_expr="lte")
 
@@ -89,24 +125,31 @@ class EventFilter(filters.FilterSet):
         model = Event
         fields = []
 
-    def filter_queryset(self, queryset):
-        data = self.form.cleaned_data
-        qs = queryset
+    def filter_category(self, qs, name, raw):
+        ids = parse_int_list(raw)
+        if not ids:
+            return qs
+        filtered = qs.filter(categories__id__in=ids)
+        return filtered if filtered.exists() else qs
 
-        # 1) categories first
-        cats = data.get('category_ids')
-        if cats:
-            qs = qs.filter(categories__id__in=cats)
+    def filter_center(self, qs, name, raw):
+        ids = parse_int_list(raw)
+        if not ids:
+            return qs
+        filtered = qs.filter(edu_center__id__in=ids)
+        return filtered if filtered.exists() else qs
 
-        # 2) edu_center_ids next
-        centers = data.get('edu_center_ids')
-        if centers:
-            qs = qs.filter(edu_center__id__in=centers)
+    def filter_queryset(self, qs):
+        params = self.request.query_params
 
-        # 3) then dates
+        qs = self.filter_category(qs, 'category_ids', params.get('category_ids'))
+        qs = self.filter_center(qs, 'edu_center_ids', params.get('edu_center_ids'))
+
         for name in ('start_date', 'end_date'):
-            val = data.get(name)
-            if val:
-                qs = self.filters[name].filter(qs, val)
+            raw = params.get(name)
+            if raw:
+                candidate = self.filters[name].filter(qs, raw)
+                if candidate.exists():
+                    qs = candidate
 
         return qs.distinct()
