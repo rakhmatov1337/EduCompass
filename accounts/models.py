@@ -31,6 +31,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         ("EDU_CENTER", "Education Center"),
         ("BRANCH", "Branch Admin"),
         ("STUDENT", "Student"),
+        ("ACCOUNTANT", "Accountant"),
     ]
 
     GENDER_CHOICES = [
