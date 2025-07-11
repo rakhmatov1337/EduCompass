@@ -1,3 +1,9 @@
+from drf_yasg import openapi
+import os
+import re
+from datetime import datetime
+from django.conf import settings
+from rest_framework import generics
 from datetime import timedelta
 from django.db.models import F, Count, Q, Prefetch
 from django.utils import timezone
@@ -22,7 +28,7 @@ from api.serializers import (AppliedStudentSerializer, CategorySerializer,
                              CourseSerializer, DaySerializer,
                              EduTypeSerializer, EventSerializer,
                              LevelSerializer, TeacherSerializer,
-                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer, BannerSerializer)
+                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer, BannerSerializer, ExportReportSerializer)
 from main.models import (Category, Course, Day, EduType, Enrollment, Event,
                          Level, Teacher, Banner)
 
@@ -547,3 +553,84 @@ class BannerViewSet(viewsets.ModelViewSet):
     queryset = Banner.objects.all()
     serializer_class = BannerSerializer
     permission_classes = [IsSuperUserOrReadOnly]
+
+
+class ExportReportList(generics.ListAPIView):
+    """
+    GET /api/reports/
+    Lists all Excel reports for the current user's edu_center.
+    """
+    serializer_class = ExportReportSerializer
+    permission_classes = [IsEduCenter]
+
+    @swagger_auto_schema(
+        operation_summary="List available report files",
+        responses={200: ExportReportSerializer(many=True)}
+    )
+
+    def get_queryset(self):
+        edu_centers = getattr(self.request.user, "education_center", None)
+        if not edu_centers:
+            return []
+        edu_center = edu_centers.first()
+        if not edu_center:
+            return []
+        edu_center_id = edu_center.id
+        exports_dir = os.path.join(settings.MEDIA_ROOT, "exports")
+        pattern = re.compile(
+            rf"^{edu_center_id}-.*-(\d{{4}}-\d{{2}}-\d{{2}})-applications\.xlsx$")
+        reports = []
+        for fname in os.listdir(exports_dir):
+            m = pattern.match(fname)
+            if m:
+                date = datetime.strptime(m.group(1), "%Y-%m-%d").date()
+                reports.append({"filename": fname, "date": date})
+        # sort newest first
+        return sorted(reports, key=lambda x: x["date"], reverse=True)
+
+
+class ExportReportDownload(APIView):
+    """
+    GET /api/reports/{filename}/download/
+    Returns the file as an attachment, only if it belongs to current edu_center.
+    """
+    permission_classes = [IsEduCenter]
+
+
+    filename_param = openapi.Parameter(
+        "filename",
+        openapi.IN_PATH,
+        description="Filename of the report to download",
+        type=openapi.TYPE_STRING,
+        example="1-Englishlife-2025-07-01-applications.xlsx"
+    )
+
+    @swagger_auto_schema(
+        operation_summary="Download a report file",
+        manual_parameters=[filename_param],
+        responses={
+            200: "File attachment (.xlsx)",
+            404: "Not found"
+        }
+    )
+
+    def get(self, request, filename):
+        edu_centers = getattr(request.user, "education_center", None)
+        if not edu_centers:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        edu_center = edu_centers.first()
+        if not edu_center:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        edu_center_id = edu_center.id
+        if not filename.startswith(f"{edu_center_id}-"):
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        exports_dir = os.path.join(settings.MEDIA_ROOT, "exports")
+        file_path = os.path.join(exports_dir, filename)
+        if not os.path.exists(file_path):
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        from django.http import FileResponse
+        response = FileResponse(open(file_path, "rb"),
+                                as_attachment=True, filename=filename)
+        return response

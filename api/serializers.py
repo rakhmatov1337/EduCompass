@@ -464,3 +464,13 @@ class BannerSerializer(serializers.ModelSerializer):
         model = Banner
         fields = ["id", "image_uz", "image_en", "image_ru"]
         read_only_fields = ["id"]
+
+
+class ExportReportSerializer(serializers.Serializer):
+    filename = serializers.CharField()
+    date = serializers.DateField(format="%Y-%m-%d")
+    url = serializers.SerializerMethodField()
+
+    def get_url(self, obj):
+        request = self.context['request']
+        return request.build_absolute_uri(f"/api/reports/{obj['filename']}/download/")
