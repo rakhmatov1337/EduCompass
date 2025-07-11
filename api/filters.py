@@ -41,8 +41,8 @@ class CourseFilter(filters.FilterSet):
         field_name="total_places", lookup_expr="lte")
     teacher_gender = filters.CharFilter(
         field_name="teacher__gender", lookup_expr="iexact")
-    edu_center_id = filters.NumberFilter(method="filter_by_edu_center")
-    category_id = filters.BaseInFilter(field_name="category__id", lookup_expr="in")
+    edu_center_ids = filters.NumberFilter(method="filter_by_edu_center")
+    category_ids = filters.BaseInFilter(field_name="category__id", lookup_expr="in")
     day = DayNameInFilter(method="filter", field_name="days__name")
 
     class Meta:
@@ -51,8 +51,8 @@ class CourseFilter(filters.FilterSet):
             "price_min", "price_max",
             "total_places_min", "total_places_max",
             "teacher_gender",
-            "edu_center_id",
-            "category_id",
+            "edu_center_ids",
+            "category_ids",
             "day",
         ]
 
@@ -67,7 +67,7 @@ class NumberInFilter(django_filters.BaseInFilter, django_filters.NumberFilter):
 class EventFilter(filters.FilterSet):
     start_date = filters.DateFilter(field_name="date", lookup_expr="gte")
     end_date = filters.DateFilter(field_name="date", lookup_expr="lte")
-    edu_center_id = NumberInFilter(field_name="edu_center__id", lookup_expr="in")
+    edu_center_ids = NumberInFilter(field_name="edu_center__id", lookup_expr="in")
     category_id = NumberInFilter(field_name="categories__id", lookup_expr="in")
 
     class Meta:
@@ -75,6 +75,6 @@ class EventFilter(filters.FilterSet):
         fields = [
             "start_date",
             "end_date",
-            "edu_center_id",
-            "category_id",
+            "edu_center_ids",
+            "category_ids",
         ]
