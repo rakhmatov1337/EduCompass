@@ -258,13 +258,11 @@ LOGGING = {
         },
     },
     "loggers": {
-        # ensure celery.beat INFO logs go to console
         "celery.beat": {
             "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },
-        # optionally enable root celery logs too
         "celery": {
             "handlers": ["console"],
             "level": "WARNING",
