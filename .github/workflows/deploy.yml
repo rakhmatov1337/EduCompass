@@ -35,6 +35,7 @@ jobs:
             source venv/bin/activate
             pip install --upgrade pip setuptools wheel
             pip install --no-cache-dir -r requirements.txt
+            python manage.py collectstatic --noinput
 
             # Fake‐apply the broken quiz migration to sync migration history
             python manage.py migrate quiz 0002 --fake || true
