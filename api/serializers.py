@@ -469,33 +469,7 @@ class BannerSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
-class ExportReportSerializer(serializers.Serializer):
-    filename = serializers.CharField()
-    date = serializers.DateField(format="%Y-%m-%d")
-    url = serializers.SerializerMethodField()
 
-    def get_url(self, obj):
-        request = self.context['request']
-        return request.build_absolute_uri(f"/api/reports/{obj['filename']}/download/")
-
-
-class ExportStatsSerializer(serializers.Serializer):
-    edu_center_id = serializers.IntegerField()
-    edu_center_name = serializers.CharField()
-    total_applications = serializers.IntegerField()
-    payable_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
-    paid_amount = serializers.DecimalField(
-        max_digits=12, decimal_places=2, default=Decimal("0.00")
-    )
-    debt = serializers.SerializerMethodField()
-
-    def get_debt(self, obj):
-        try:
-            paid = Decimal(obj.get("paid_amount") or "0.00")
-        except (InvalidOperation, TypeError):
-            paid = Decimal("0.00")
-        payable = obj.get("payable_amount") or Decimal("0.00")
-        return (payable - paid).quantize(Decimal("0.01"))
 
 
 class AddPaymentSerializer(serializers.Serializer):

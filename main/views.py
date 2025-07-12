@@ -1,11 +1,14 @@
+import tablib
 from datetime import datetime
 from datetime import timedelta
+from django.http import HttpResponse
 from django.db.models import F, Count, Q, Prefetch, DecimalField
 from decimal import Decimal
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -561,6 +564,7 @@ class CenterPaymentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAccountant]
     http_method_names = ['get', 'post']
 
+    @swagger_auto_schema(operation_summary="List center payments with summary stats")
     def list(self, request, *args, **kwargs):
         for center in EducationCenter.objects.all():
             CenterPayment.objects.get_or_create(edu_center=center)
@@ -570,10 +574,7 @@ class CenterPaymentViewSet(viewsets.ModelViewSet):
         total_paid = sum([cp.paid_amount for cp in CenterPayment.objects.all()])
         enroll_stats = Enrollment.objects.aggregate(
             total_apps=Count('id'),
-            sum_payable=Sum(
-                F('course__price') * Value(0.03),
-                output_field=DecimalField()
-            )
+            sum_payable=Sum(F('course__price') * Value(0.03), output_field=Decimal())
         )
         total_debt = max((enroll_stats['sum_payable'] or Decimal("0.00")) - total_paid, Decimal("0.00"))
 
@@ -588,6 +589,11 @@ class CenterPaymentViewSet(viewsets.ModelViewSet):
         }
         return response
 
+    @swagger_auto_schema(
+        method='post',
+        request_body=AddPaymentSerializer,
+        operation_summary="Add new paid amount log"
+    )
     @action(detail=True, methods=['post'], serializer_class=AddPaymentSerializer)
     def add_payment(self, request, pk=None):
         payment = self.get_object()
@@ -600,6 +606,7 @@ class CenterPaymentViewSet(viewsets.ModelViewSet):
         data = CenterPaymentSerializer(payment, context={"request": request}).data
         return Response(data, status=status.HTTP_201_CREATED)
 
+
 class PaidAmountLogViewSet(viewsets.ModelViewSet):
     queryset = PaidAmountLog.objects.all()
     serializer_class = PaidAmountLogSerializer
@@ -609,13 +616,17 @@ class PaidAmountLogViewSet(viewsets.ModelViewSet):
         serializer.save(updated_at=timezone.now())
 
 
-
-
 class MonthlyCenterReportViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = MonthlyCenterReport.objects.select_related('edu_center')
     serializer_class = MonthlyCenterReportSerializer
-    permission_classes = [IsAccountant]
+    permission_classes = [IsAuthenticated, IsAccountant]
 
+    @swagger_auto_schema(
+        operation_summary="Filter monthly report by ?month=YYYY-MM",
+        manual_parameters=[
+            openapi.Parameter('month', openapi.IN_QUERY, type=openapi.TYPE_STRING, description='Format: YYYY-MM')
+        ]
+    )
     def get_queryset(self):
         qs = super().get_queryset()
         month_str = self.request.query_params.get("month")
@@ -627,6 +638,7 @@ class MonthlyCenterReportViewSet(viewsets.ReadOnlyModelViewSet):
                 return qs.none()
         return qs
 
+    @swagger_auto_schema(operation_summary="Get current month's report")
     @action(detail=False, methods=["get"])
     def current(self, request):
         today = datetime.today()
@@ -634,3 +646,133 @@ class MonthlyCenterReportViewSet(viewsets.ReadOnlyModelViewSet):
         qs = self.get_queryset().filter(year=year, month=month)
         ser = self.get_serializer(qs, many=True)
         return Response(ser.data)
+
+
+class EduCenterReportView(APIView):
+    permission_classes = [IsAuthenticated, IsEduCenter]
+
+    @swagger_auto_schema(
+        operation_summary="Get your center report (all time or filtered by ?month=YYYY-MM)",
+        manual_parameters=[
+            openapi.Parameter('month', openapi.IN_QUERY, type=openapi.TYPE_STRING, description='Format: YYYY-MM')
+        ]
+    )
+    def get(self, request):
+        user = request.user
+        month_str = request.query_params.get("month")
+
+        enrollments = Enrollment.objects.select_related(
+            'user', 'course', 'course__branch', 'course__branch__edu_center'
+        ).filter(course__branch__edu_center__user=user)
+
+        if month_str:
+            try:
+                year, month = map(int, month_str.split("-"))
+                enrollments = enrollments.filter(applied_at__year=year, applied_at__month=month)
+            except Exception:
+                return Response({"detail": "month=YYYY-MM formatda bo'lishi kerak."}, status=400)
+        else:
+            year = month = None
+
+        edu_center = EducationCenter.objects.get(user=user)
+        total_apps = enrollments.count()
+        payable = enrollments.aggregate(
+            s=Sum(F('course__price') * Value(0.03), output_field=Decimal())
+        )['s'] or Decimal("0.00")
+
+        paid_logs = PaidAmountLog.objects.filter(center_payment__edu_center=edu_center)
+        if year and month:
+            paid_logs = paid_logs.filter(created_at__year=year, created_at__month=month)
+
+        paid_amount = sum([log.amount for log in paid_logs])
+        debt = max(payable - paid_amount, Decimal("0.00"))
+
+        log_data = PaidAmountLogSerializer(paid_logs.order_by('-created_at'), many=True).data
+        app_data = [
+            {
+                "full_name": e.user.full_name,
+                "phone_number": e.user.phone_number,
+                "course_name": e.course.name,
+                "branch_name": e.course.branch.name,
+                "applied_at": e.applied_at.strftime("%Y-%m-%d %H:%M"),
+                "course_price": str(e.course.price),
+                "charge_percent": "3%",
+                "charge": str(round(e.course.price * Decimal("0.03"), 2))
+            }
+            for e in enrollments
+        ]
+
+        return Response({
+            "edu_center_id": edu_center.id,
+            "edu_center_name": edu_center.name,
+            "year": year,
+            "month": month,
+            "total_applications": total_apps,
+            "payable_amount": payable,
+            "paid_amount": paid_amount,
+            "debt": debt,
+            "logs": log_data,
+            "enrollments": app_data,
+        })
+
+
+class EduCenterReportExportView(APIView):
+    permission_classes = [IsAuthenticated, IsEduCenter]
+
+    @swagger_auto_schema(
+        operation_summary="Download current month's report as Excel",
+        manual_parameters=[
+            openapi.Parameter('month', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True, description='Format: YYYY-MM')
+        ]
+    )
+    def get(self, request):
+        user = request.user
+        month_str = request.query_params.get("month")
+
+        try:
+            year, month = map(int, month_str.split("-"))
+        except Exception:
+            return Response({"detail": "month=YYYY-MM formatda bo'lishi kerak."}, status=400)
+
+        enrollments = Enrollment.objects.select_related(
+            'user', 'course', 'course__branch', 'course__branch__edu_center'
+        ).filter(
+            course__branch__edu_center__user=user,
+            applied_at__year=year,
+            applied_at__month=month
+        )
+
+        dataset = tablib.Dataset()
+        dataset.headers = [
+            "Full Name", "Phone Number", "Course Name", "Branch Name",
+            "Applied At", "Course Price", "Charge %", "Charge Amount"
+        ]
+
+        total = Decimal("0.00")
+
+        for e in enrollments:
+            full_name = e.user.full_name
+            phone = e.user.phone_number
+            course_name = e.course.name
+            branch_name = e.course.branch.name
+            applied_at = e.applied_at.strftime("%Y-%m-%d %H:%M")
+            price = e.course.price
+            percent = "3%"
+            charge = round(price * Decimal("0.03"), 2)
+            total += charge
+
+            dataset.append([
+                full_name, phone, course_name, branch_name,
+                applied_at, price, percent, charge
+            ])
+
+        dataset.append_separator()
+        dataset.append(["", "", "", "", "", "", "Total", total])
+
+        response = HttpResponse(
+            dataset.export("xlsx"),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = f"attachment; filename=enrollments_{year}_{month}.xlsx"
+        return response
+    

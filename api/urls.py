@@ -11,7 +11,7 @@ from main.views import (AppliedStudentViewSet, CategoryViewSet,
                         CourseFilterSchemaView, CourseViewSet, DayViewSet,
                         EduTypeViewSet, EventFilterSchemaView, EventViewSet,
                         LevelViewSet, TeacherViewSet, BannerViewSet, CenterPaymentViewSet,
-                        MonthlyCenterReportViewSet, PaidAmountLogViewSet)
+                        MonthlyCenterReportViewSet, PaidAmountLogViewSet, EduCenterReportView, EduCenterReportExportView)
 from quiz.views import (
     QuizFilterSchemaView,
     LevelProgressView, PackViewSet
@@ -81,7 +81,10 @@ urlpatterns = (
         ),
         path("levels/<int:level_id>/progress/",
              LevelProgressView.as_view(),  name="level-progress"),
+        path("edu-center/reports/", EduCenterReportView.as_view(), name="edu-center-report-detail"),
+    path("edu-center/reports/export/", EduCenterReportExportView.as_view(), name="edu-center-report-export"),
+
     ]
-    + router.urls
+    + router.urls   
     + edu_center_router.urls
 )

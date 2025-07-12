@@ -116,3 +116,4 @@ virtualenv==20.31.2
 wcwidth==0.2.13
 drf-nested-routers
 openpyxl
+tablib
