@@ -560,7 +560,7 @@ class BannerViewSet(viewsets.ModelViewSet):
 
 class CenterPaymentViewSet(viewsets.ModelViewSet):
     queryset = CenterPayment.objects.select_related('edu_center').only(
-        'id', 'edu_center__id', 'edu_center__name', 'paid_amount'
+        'id', 'edu_center__id', 'edu_center__name'
     )
     serializer_class = CenterPaymentSerializer
     permission_classes = [IsAuthenticated, IsAccountant]
