@@ -573,7 +573,7 @@ class CenterPaymentViewSet(viewsets.ModelViewSet):
 
         response = super().list(request, *args, **kwargs)
 
-        total_paid = sum([cp.paid_amount for cp in CenterPayment.objects.only('paid_amount')])
+        total_paid = sum(cp.paid_amount for cp in CenterPayment.objects.all())
         enroll_stats = Enrollment.objects.aggregate(
             total_apps=Count('id'),
             sum_payable=Sum(F('course__price') * Value(0.03), output_field=DecimalField())
