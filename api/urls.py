@@ -10,8 +10,8 @@ from accounts.views import (BranchViewSet, CurrentUserRetrieveUpdateView,
 from main.views import (AppliedStudentViewSet, CategoryViewSet,
                         CourseFilterSchemaView, CourseViewSet, DayViewSet,
                         EduTypeViewSet, EventFilterSchemaView, EventViewSet,
-                        LevelViewSet, TeacherViewSet, BannerViewSet, ExportReportDownload,
-                        ExportReportList, AccountStatsView, ExportStatsSummaryView)
+                        LevelViewSet, TeacherViewSet, BannerViewSet, CenterPaymentViewSet,
+                        MonthlyCenterReportViewSet, PaidAmountLogViewSet)
 from quiz.views import (
     QuizFilterSchemaView,
     LevelProgressView, PackViewSet
@@ -29,6 +29,17 @@ router.register("edu-centers", EduCenterViewSet, basename="edu-centers")
 router.register("events", EventViewSet, basename="event")
 router.register("applied-students", AppliedStudentViewSet, basename="applied-students")
 router.register(r"banners", BannerViewSet, basename="banner")
+
+# accounts routers
+router.register(
+    r'center-payments',
+    CenterPaymentViewSet,
+    basename='center-payments'
+)
+router.register(r"monthly-reports", MonthlyCenterReportViewSet,
+                basename="monthly-reports")
+router.register(r"center-payments/paid-logs", PaidAmountLogViewSet,
+                basename="paid-logs")
 
 # quiz routers
 router.register(r'levels/(?P<level_id>\d+)/packs', PackViewSet, basename='level-packs')
@@ -70,14 +81,6 @@ urlpatterns = (
         ),
         path("levels/<int:level_id>/progress/",
              LevelProgressView.as_view(),  name="level-progress"),
-        path("reports/", ExportReportList.as_view(), name="report-list"),
-        path("reports/<str:filename>/download/",
-             ExportReportDownload.as_view(), name="report-download"),
-        path("report-stats/", AccountStatsView.as_view(), name="account-stats"),
-        path("edu-center-report/stats/", ExportStatsSummaryView.as_view(), name="edu-center-stats"),
-        path("account-stats/", AccountStatsView.as_view(),
-             name="account-stats"),
-        path("account-stats/summary/", ExportStatsSummaryView.as_view(), name="branch-stats")
     ]
     + router.urls
     + edu_center_router.urls

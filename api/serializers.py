@@ -1,11 +1,15 @@
 from decimal import Decimal, InvalidOperation
+from django.db.models import DecimalField
 from dateutil.relativedelta import relativedelta
+from django.db.models import Count, Sum, F, Value
 
 from rest_framework import serializers
+
 
 from main.models import (Branch, Category, Course, Day, EducationCenter,
                          EduType, Enrollment, Event, Level, Like, Teacher,
                          View, Banner)
+from accounts.models import CenterPayment, MonthlyCenterReport, PaidAmountLog
 
 
 class DynamicBranchSerializerMixin:
@@ -493,4 +497,69 @@ class ExportStatsSerializer(serializers.Serializer):
         payable = obj.get("payable_amount") or Decimal("0.00")
         return (payable - paid).quantize(Decimal("0.01"))
 
+
+class AddPaymentSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0.01)
+
+class PaidAmountLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaidAmountLog
+        fields = ['id', 'amount', 'created_at', 'updated_at']
+
+class CenterPaymentSerializer(serializers.ModelSerializer):
+    edu_center_id = serializers.IntegerField(source='edu_center.id', read_only=True)
+    edu_center_name = serializers.CharField(source='edu_center.name', read_only=True)
+    total_applications = serializers.IntegerField(read_only=True)
+    payable_amount = serializers.DecimalField(
+        max_digits=12, decimal_places=2, read_only=True)
+    debt = serializers.SerializerMethodField()
+    logs = PaidAmountLogSerializer(many=True, read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = CenterPayment
+        fields = [
+            'edu_center_id', 'edu_center_name',
+            'total_applications', 'payable_amount',
+            'paid_amount', 'debt', 'created_at', 'updated_at', 'logs'
+        ]
+        read_only_fields = fields
+
+    def get_debt(self, obj):
+        stats = Enrollment.objects.filter(
+            course__branch__edu_center=obj.edu_center
+        ).aggregate(
+            sum_price=Sum(F('course__price') * Value(0.03), output_field=DecimalField())
+        )
+        payable = stats['sum_price'] or Decimal("0.00")
+        return max(payable - obj.paid_amount, Decimal("0.00"))
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        stats = Enrollment.objects.filter(
+            course__branch__edu_center=instance.edu_center
+        ).aggregate(
+            total_apps=Count('id'),
+            sum_price=Sum(F('course__price') * Value(0.03), output_field=DecimalField())
+        )
+        data['total_applications'] = stats['total_apps'] or 0
+        data['payable_amount'] = stats['sum_price'] or 0
+        data['debt'] = str(max(Decimal(data['payable_amount']) - instance.paid_amount, Decimal("0.00")))
+        return data
+
+
+
+class MonthlyCenterReportSerializer(serializers.ModelSerializer):
+    edu_center_name = serializers.CharField(source='edu_center.name', read_only=True)
+    debt = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = MonthlyCenterReport
+        fields = [
+            'id', 'edu_center', 'edu_center_name',
+            'year', 'month',
+            'total_applications', 'payable_amount', 'paid_amount', 'debt',
+            'created_at', 'updated_at'
+        ]
 

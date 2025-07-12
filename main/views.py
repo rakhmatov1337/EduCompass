@@ -1,39 +1,36 @@
-from drf_yasg import openapi
-import os
-import re
 from datetime import datetime
-from django.conf import settings
-from rest_framework import generics
 from datetime import timedelta
-from django.db.models import F, Count, Q, Prefetch
+from django.db.models import F, Count, Q, Prefetch, DecimalField
+from decimal import Decimal
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status, viewsets, mixins
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from decimal import Decimal
 from django.db.models import Sum, Count, F, Value
-from django.db.models.fields import DecimalField
 from accounts.serializers import EmptySerializer, MyCourseSerializer
 from accounts.permissions import IsEduCenter
+from accounts.models import CenterPayment, MonthlyCenterReport, PaidAmountLog
 from api.permissions import IsSuperUserOrReadOnly, IsAccountant
 from api.filters import CourseFilter, EventFilter
 from api.paginations import DefaultPagination
-from api.permissions import IsEduCenterBranchOrReadOnly, IsSuperUserOrReadOnly
+from api.permissions import IsEduCenterBranchOrReadOnly, IsSuperUserOrReadOnly, IsAccountant
 from api.serializers import (AppliedStudentSerializer, CategorySerializer,
                              CourseSerializer, DaySerializer,
                              EduTypeSerializer, EventSerializer,
                              LevelSerializer, TeacherSerializer,
-                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer, BannerSerializer, ExportReportSerializer, ExportStatsSerializer)
+                             CancelEnrollmentSerializer, EnrollmentStatusStatsSerializer,
+                             BannerSerializer, CenterPaymentSerializer, MonthlyCenterReportSerializer, 
+                             AddPaymentSerializer, PaidAmountLogSerializer)
 from main.models import (Category, Course, Day, EduType, Enrollment, Event,
-                         Level, Teacher, Banner, Branch)
+                         Level, Teacher, Banner, EducationCenter)
 
 # ─── EduType / Category / Level / Day ─────────────────────────────────────
 
@@ -558,217 +555,82 @@ class BannerViewSet(viewsets.ModelViewSet):
     permission_classes = [IsSuperUserOrReadOnly]
 
 
-class ExportReportList(generics.ListAPIView):
-    """
-    GET /api/reports/
-    Lists all Excel reports for the current user's edu_center.
-    """
-    serializer_class = ExportReportSerializer
-    permission_classes = [IsEduCenter]
+class CenterPaymentViewSet(viewsets.ModelViewSet):
+    queryset = CenterPayment.objects.select_related('edu_center')
+    serializer_class = CenterPaymentSerializer
+    permission_classes = [IsAuthenticated, IsAccountant]
+    http_method_names = ['get', 'post']
 
-    @swagger_auto_schema(
-        operation_summary="List available report files",
-        responses={200: ExportReportSerializer(many=True)}
-    )
-    def get_queryset(self):
-        edu_centers = getattr(self.request.user, "education_center", None)
-        if not edu_centers:
-            return []
-        edu_center = edu_centers.first()
-        if not edu_center:
-            return []
-        edu_center_id = edu_center.id
-        exports_dir = os.path.join(settings.MEDIA_ROOT, "exports")
-        pattern = re.compile(
-            rf"^{edu_center_id}-.*-(\d{{4}}-\d{{2}}-\d{{2}})-applications\.xlsx$")
-        reports = []
-        for fname in os.listdir(exports_dir):
-            m = pattern.match(fname)
-            if m:
-                date = datetime.strptime(m.group(1), "%Y-%m-%d").date()
-                reports.append({"filename": fname, "date": date})
-        # sort newest first
-        return sorted(reports, key=lambda x: x["date"], reverse=True)
+    def list(self, request, *args, **kwargs):
+        for center in EducationCenter.objects.all():
+            CenterPayment.objects.get_or_create(edu_center=center)
 
+        response = super().list(request, *args, **kwargs)
 
-class ExportReportDownload(APIView):
-    """
-    GET /api/reports/{filename}/download/
-    Returns the file as an attachment, only if it belongs to current edu_center.
-    """
-    permission_classes = [IsEduCenter]
-
-    filename_param = openapi.Parameter(
-        "filename",
-        openapi.IN_PATH,
-        description="Filename of the report to download",
-        type=openapi.TYPE_STRING,
-        example="1-Englishlife-2025-07-01-applications.xlsx"
-    )
-
-    @swagger_auto_schema(
-        operation_summary="Download a report file",
-        manual_parameters=[filename_param],
-        responses={
-            200: "File attachment (.xlsx)",
-            404: "Not found"
-        }
-    )
-    def get(self, request, filename):
-        edu_centers = getattr(request.user, "education_center", None)
-        if not edu_centers:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        edu_center = edu_centers.first()
-        if not edu_center:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        edu_center_id = edu_center.id
-        if not filename.startswith(f"{edu_center_id}-"):
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        exports_dir = os.path.join(settings.MEDIA_ROOT, "exports")
-        file_path = os.path.join(exports_dir, filename)
-        if not os.path.exists(file_path):
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        from django.http import FileResponse
-        response = FileResponse(open(file_path, "rb"),
-                                as_attachment=True, filename=filename)
-        return response
-
-
-class ExportStatsSummaryView(APIView):
-    """
-    Edu Center foydalanuvchisi uchun:
-      - total_applications
-      - payable_amount  (3% komissiya)
-      - paid_amount     (hamisha 0)
-      - debt            (payable - paid)
-    branch bo‘yicha filterlash mumkin via ?branch=<id>
-    """
-    permission_classes = [IsEduCenter]
-
-    branch_param = openapi.Parameter(
-        "branch", openapi.IN_QUERY,
-        description="Branch ID bo‘yicha filtrlash",
-        type=openapi.TYPE_INTEGER,
-        required=False,
-    )
-
-    @swagger_auto_schema(
-        operation_summary="Edu Center statistics per branch",
-        manual_parameters=[branch_param],
-        responses={200: ExportStatsSerializer()}
-    )
-    def get(self, request):
-        # 1) EduCenter olish
-        edu_centers = getattr(request.user, "education_center", None)
-        if not edu_centers:
-            return Response({"detail": "Sizga tegishli o'quv markazi topilmadi"}, status=404)
-        ec = edu_centers.first()
-        if not ec:
-            return Response({"detail": "Ta'lim markazi topilmadi"}, status=404)
-
-        # 2) Branch filter
-        branch_id = request.query_params.get("branch")
-        courses = Course.objects.filter(branch__edu_center=ec)
-        if branch_id:
-            # xavfsizlik: shu edu_centerga tegishli branch ekanligini tekshirish
-            if not Branch.objects.filter(id=branch_id, edu_center=ec).exists():
-                return Response({"detail": "Bunday filialga ruxsat yoʻq"}, status=403)
-            courses = courses.filter(branch_id=branch_id)
-
-        # 3) Enrollment statistikasi
-        enrollments = Enrollment.objects.filter(course__in=courses)
-        total_applications = enrollments.count()
-        payable_amount = sum(
-            (e.course.price * Decimal("0.03") for e in enrollments if e.course.price),
-            Decimal("0")
-        )
-        paid_amount = Decimal("0.00")
-        debt = payable_amount - paid_amount
-
-        data = {
-            "edu_center_id":       ec.id,
-            "edu_center_name":     ec.name,
-            "total_applications":  total_applications,
-            "payable_amount":      payable_amount.quantize(Decimal("0.01")),
-            "paid_amount":         paid_amount.quantize(Decimal("0.01")),
-            "debt":                debt.quantize(Decimal("0.01")),
-        }
-        serializer = ExportStatsSerializer(data, context={"request": request})
-        return Response(serializer.data)
-
-
-class AccountStatsView(APIView):
-    """
-    Buxgalter uchun:
-      - GET  → barcha edu_centerlar bo‘yicha stats (paid_amount=0)
-      - POST → "paid_amounts": { "<edu_center_id>": "<summa>" } qabul qilib qayta hisoblaydi
-    """
-    permission_classes = [IsAccountant]
-
-    @swagger_auto_schema(
-        operation_summary="Get all education center stats (unpaid)",
-        responses={200: ExportStatsSerializer(many=True)}
-    )
-    def get(self, request):
-        base = self._gather_base_stats()
-        for rec in base:
-            rec["paid_amount"] = Decimal("0.00").quantize(Decimal("0.01"))
-        serializer = ExportStatsSerializer(
-            base, many=True, context={"request": request})
-        return Response(serializer.data)
-
-    paid_param = openapi.Parameter(
-        "paid_amounts", openapi.IN_BODY,
-        description="{ edu_center_id: amount, … }",
-        type=openapi.TYPE_OBJECT,
-        example={"1": "100.00", "2": "50.00"}
-    )
-
-    @swagger_auto_schema(
-        operation_summary="Post paid amounts and recalculate debt",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "paid_amounts": openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    additional_properties=openapi.Schema(type=openapi.TYPE_STRING)
-                )
-            },
-            required=["paid_amounts"]
-        ),
-        responses={200: ExportStatsSerializer(many=True)}
-    )
-    def post(self, request):
-        paid_map = request.data.get("paid_amounts", {})
-        base = self._gather_base_stats()
-        for rec in base:
-            pid = str(rec["edu_center_id"])
-            paid = paid_map.get(pid, 0) or 0
-            rec["paid_amount"] = Decimal(str(paid)).quantize(Decimal("0.01"))
-        serializer = ExportStatsSerializer(
-            base, many=True, context={"request": request})
-        return Response(serializer.data)
-
-    def _gather_base_stats(self):
-        qs = (
-            Enrollment.objects
-            .values("course__branch__edu_center__id", "course__branch__edu_center__name")
-            .annotate(
-                total=Count("id"),
-                payable=Sum(
-                    F("course__price") * Value(0.03),
-                    output_field=DecimalField(max_digits=12, decimal_places=2),
-                ),
+        total_paid = sum([cp.paid_amount for cp in CenterPayment.objects.all()])
+        enroll_stats = Enrollment.objects.aggregate(
+            total_apps=Count('id'),
+            sum_payable=Sum(
+                F('course__price') * Value(0.03),
+                output_field=DecimalField()
             )
         )
-        return [
-            {
-                "edu_center_id":      rec["course__branch__edu_center__id"],
-                "edu_center_name":    rec["course__branch__edu_center__name"],
-                "total_applications": rec["total"],
-                "payable_amount":     rec["payable"].quantize(Decimal("0.01")),
-            }
-            for rec in qs
-        ]
+        total_debt = max((enroll_stats['sum_payable'] or Decimal("0.00")) - total_paid, Decimal("0.00"))
+
+        response.data = {
+            "overall": {
+                "total_applications": enroll_stats['total_apps'] or 0,
+                "total_payable": enroll_stats['sum_payable'] or 0,
+                "total_paid": total_paid,
+                "total_debt": total_debt,
+            },
+            "centers": response.data
+        }
+        return response
+
+    @action(detail=True, methods=['post'], serializer_class=AddPaymentSerializer)
+    def add_payment(self, request, pk=None):
+        payment = self.get_object()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        amount = serializer.validated_data['amount']
+        PaidAmountLog.objects.create(center_payment=payment, amount=amount)
+
+        data = CenterPaymentSerializer(payment, context={"request": request}).data
+        return Response(data, status=status.HTTP_201_CREATED)
+
+class PaidAmountLogViewSet(viewsets.ModelViewSet):
+    queryset = PaidAmountLog.objects.all()
+    serializer_class = PaidAmountLogSerializer
+    permission_classes = [IsAuthenticated, IsAccountant]
+
+    def perform_update(self, serializer):
+        serializer.save(updated_at=timezone.now())
+
+
+
+
+class MonthlyCenterReportViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = MonthlyCenterReport.objects.select_related('edu_center')
+    serializer_class = MonthlyCenterReportSerializer
+    permission_classes = [IsAccountant]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        month_str = self.request.query_params.get("month")
+        if month_str:
+            try:
+                year, month = map(int, month_str.split("-"))
+                qs = qs.filter(year=year, month=month)
+            except ValueError:
+                return qs.none()
+        return qs
+
+    @action(detail=False, methods=["get"])
+    def current(self, request):
+        today = datetime.today()
+        year, month = today.year, today.month
+        qs = self.get_queryset().filter(year=year, month=month)
+        ser = self.get_serializer(qs, many=True)
+        return Response(ser.data)

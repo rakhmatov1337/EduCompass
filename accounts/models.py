@@ -2,6 +2,10 @@ from django.contrib.auth.models import (AbstractBaseUser, BaseUserManager,
                                         Group, Permission, PermissionsMixin)
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Sum
+from decimal import Decimal
+
+from main.models import EducationCenter
 
 
 class CustomUserManager(BaseUserManager):
@@ -93,3 +97,65 @@ class User(AbstractBaseUser, PermissionsMixin):
 
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class CenterPayment(models.Model):
+    edu_center = models.OneToOneField(
+        EducationCenter,
+        on_delete=models.CASCADE,
+        related_name='payment'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def paid_amount(self):
+        return self.logs.aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+
+    def __str__(self):
+        return f"Payment for {self.edu_center.name}: {self.paid_amount}"
+
+    class Meta:
+        verbose_name = "Center Payment"
+        verbose_name_plural = "Center Payments"
+        ordering = ['-created_at']
+
+    
+class MonthlyCenterReport(models.Model):
+    edu_center = models.ForeignKey(
+        EducationCenter, on_delete=models.CASCADE, related_name='monthly_reports')
+    year = models.PositiveIntegerField()
+    month = models.PositiveIntegerField()
+
+    total_applications = models.PositiveIntegerField(default=0)
+    payable_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    paid_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal('0.00'))
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("edu_center", "year", "month")
+
+    @property
+    def debt(self):
+        return max(self.payable_amount - self.paid_amount, Decimal('0.00'))
+
+    def __str__(self):
+        return f"{self.edu_center.name} – {self.year}-{self.month}"
+
+
+class PaidAmountLog(models.Model):
+    center_payment = models.ForeignKey(
+        CenterPayment, on_delete=models.CASCADE, related_name='logs'
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.center_payment.edu_center.name} – {self.amount} so‘m"
