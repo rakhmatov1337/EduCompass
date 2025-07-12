@@ -26,6 +26,7 @@ extend-ignore =
   E303
   E304
   E302
-  E301 
+  E301
+  E122
   W293
   W292

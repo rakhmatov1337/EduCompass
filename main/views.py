@@ -559,22 +559,24 @@ class BannerViewSet(viewsets.ModelViewSet):
 
 
 class CenterPaymentViewSet(viewsets.ModelViewSet):
-    queryset = CenterPayment.objects.select_related('edu_center')
+    queryset = CenterPayment.objects.select_related('edu_center').only(
+        'id', 'edu_center__id', 'edu_center__name', 'paid_amount'
+    )
     serializer_class = CenterPaymentSerializer
     permission_classes = [IsAuthenticated, IsAccountant]
     http_method_names = ['get', 'post']
 
     @swagger_auto_schema(operation_summary="List center payments with summary stats")
     def list(self, request, *args, **kwargs):
-        for center in EducationCenter.objects.all():
+        for center in EducationCenter.objects.only('id').all():
             CenterPayment.objects.get_or_create(edu_center=center)
 
         response = super().list(request, *args, **kwargs)
 
-        total_paid = sum([cp.paid_amount for cp in CenterPayment.objects.all()])
+        total_paid = sum([cp.paid_amount for cp in CenterPayment.objects.only('paid_amount')])
         enroll_stats = Enrollment.objects.aggregate(
             total_apps=Count('id'),
-            sum_payable=Sum(F('course__price') * Value(0.03), output_field=Decimal())
+            sum_payable=Sum(F('course__price') * Value(0.03), output_field=DecimalField())
         )
         total_debt = max((enroll_stats['sum_payable'] or Decimal("0.00")) - total_paid, Decimal("0.00"))
 
@@ -608,7 +610,9 @@ class CenterPaymentViewSet(viewsets.ModelViewSet):
 
 
 class PaidAmountLogViewSet(viewsets.ModelViewSet):
-    queryset = PaidAmountLog.objects.all()
+    queryset = PaidAmountLog.objects.select_related('center_payment', 'center_payment__edu_center').only(
+        'id', 'amount', 'created_at', 'updated_at', 'center_payment__id'
+    )
     serializer_class = PaidAmountLogSerializer
     permission_classes = [IsAuthenticated, IsAccountant]
 
@@ -617,7 +621,11 @@ class PaidAmountLogViewSet(viewsets.ModelViewSet):
 
 
 class MonthlyCenterReportViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = MonthlyCenterReport.objects.select_related('edu_center')
+    queryset = MonthlyCenterReport.objects.select_related('edu_center').only(
+        'id', 'edu_center__id', 'edu_center__name',
+        'year', 'month', 'total_applications',
+        'payable_amount', 'paid_amount', 'debt'
+    )
     serializer_class = MonthlyCenterReportSerializer
     permission_classes = [IsAuthenticated, IsAccountant]
 
@@ -663,6 +671,10 @@ class EduCenterReportView(APIView):
 
         enrollments = Enrollment.objects.select_related(
             'user', 'course', 'course__branch', 'course__branch__edu_center'
+        ).only(
+            'applied_at', 'user__full_name', 'user__phone_number',
+            'course__name', 'course__price', 'course__branch__name',
+            'course__branch__edu_center__id'
         ).filter(course__branch__edu_center__user=user)
 
         if month_str:
@@ -674,13 +686,19 @@ class EduCenterReportView(APIView):
         else:
             year = month = None
 
-        edu_center = EducationCenter.objects.get(user=user)
+        edu_center = EducationCenter.objects.only('id', 'name').get(user=user)
         total_apps = enrollments.count()
         payable = enrollments.aggregate(
-            s=Sum(F('course__price') * Value(0.03), output_field=Decimal())
+            s=Sum(F('course__price') * Value(0.03), output_field=DecimalField())
         )['s'] or Decimal("0.00")
 
-        paid_logs = PaidAmountLog.objects.filter(center_payment__edu_center=edu_center)
+        paid_logs = PaidAmountLog.objects.select_related(
+            'center_payment', 'center_payment__edu_center'
+        ).only(
+            'id', 'amount', 'created_at', 'updated_at',
+            'center_payment', 'center_payment__id',
+            'center_payment__edu_center', 'center_payment__edu_center__id'
+        ).filter(center_payment__edu_center=edu_center)
         if year and month:
             paid_logs = paid_logs.filter(created_at__year=year, created_at__month=month)
 
@@ -736,6 +754,9 @@ class EduCenterReportExportView(APIView):
 
         enrollments = Enrollment.objects.select_related(
             'user', 'course', 'course__branch', 'course__branch__edu_center'
+        ).only(
+            'applied_at', 'user__full_name', 'user__phone_number',
+            'course__name', 'course__price', 'course__branch__name'
         ).filter(
             course__branch__edu_center__user=user,
             applied_at__year=year,
